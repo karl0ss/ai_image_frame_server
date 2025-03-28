@@ -1,0 +1,9 @@
+venv/*
+script.log
+**/*.pyc
+*.rtf
+build/
+dist/
+user_config.cfg
+Dockerfile
+output/**.*

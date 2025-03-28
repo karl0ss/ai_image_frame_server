@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Latest Image</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: black;
+        }
+        img {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+    </style>
+    <script>
+        setInterval(() => {
+            location.reload();
+        }, 30000);  // Refresh every 5 seconds
+    </script>
+</head>
+<body>
+    {% if image %}
+        <img src="{{ url_for('images', filename=image) }}" alt="Latest Image">
+    {% else %}
+        <p style="color: white;">No images found</p>
+    {% endif %}
+</body>
+</html>
