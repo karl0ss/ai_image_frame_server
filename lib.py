@@ -4,8 +4,7 @@ import logging
 import sys
 import litellm
 import time
-
-from datetime import datetime
+import os
 
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
 
@@ -18,6 +17,20 @@ except KeyError as e:
     logging.error(f"Missing configuration key: {e}")
     sys.exit(1)
 
+
+def rename_image():
+    """Rename 'image.png' to a timestamped filename if it exists in the output folder."""
+    old_path = os.path.join(user_config["comfyui"]["output_dir"], "image.png")
+    
+    if os.path.exists(old_path):
+        new_filename = f"{str(time.time())}.png"
+        new_path = os.path.join(user_config["comfyui"]["output_dir"], new_filename)
+        os.rename(old_path, new_path)
+        print(f"Renamed 'image.png' to '{new_filename}'")
+        return new_filename
+    else:
+        print("No image.png found.")
+        return None
 
 def send_prompt_to_openwebui(prompt):
     response = litellm.completion(
@@ -55,6 +68,7 @@ def generate_image(file_name, comfy_prompt):
         # Queue your workflow for completion
         logging.debug(f"Generating image: {file_name}")
         results = api.queue_and_wait_images(wf, "Save Image")
+        rename_image()
         for filename, image_data in results.items():
             with open(
                 user_config["comfyui"]["output_dir"] + file_name + ".png", "wb+"
@@ -69,8 +83,4 @@ def create_image():
     """Main function for generating images."""
     prompt = send_prompt_to_openwebui(user_config["comfyui"]["prompt"])
     print(f"Generated prompt: {prompt}")
-    generate_image(str(time.time()), prompt)
-
-
-# if __name__ == "__main__":
-#     main()
+    generate_image("image", prompt)

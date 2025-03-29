@@ -5,5 +5,4 @@ script.log
 build/
 dist/
 user_config.cfg
-Dockerfile
 output/**.*
