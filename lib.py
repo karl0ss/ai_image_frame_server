@@ -8,15 +8,15 @@ import os
 
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
 
-user_config = configparser.ConfigParser()
-try:
-    user_config.read("./user_config.cfg")
-    output_folder = user_config["comfyui"]["output_dir"]
-    logging.debug("Configuration loaded successfully.")
-except KeyError as e:
-    logging.error(f"Missing configuration key: {e}")
-    sys.exit(1)
-
+def load_config():
+    user_config = configparser.ConfigParser()
+    try:
+        user_config.read("./user_config.cfg")
+        logging.debug("Configuration loaded successfully.")
+        return user_config
+    except KeyError as e:
+        logging.error(f"Missing configuration key: {e}")
+        sys.exit(1)
 
 def rename_image():
     """Rename 'image.png' to a timestamped filename if it exists in the output folder."""
@@ -84,3 +84,7 @@ def create_image():
     prompt = send_prompt_to_openwebui(user_config["comfyui"]["prompt"])
     print(f"Generated prompt: {prompt}")
     generate_image("image", prompt)
+
+
+user_config = load_config()
+output_folder = user_config["comfyui"]["output_dir"]

@@ -1,6 +1,8 @@
 from flask import Flask, render_template, send_from_directory, redirect, url_for
 import os
-from lib import create_image
+from lib import create_image, load_config
+
+user_config = load_config()
 
 app = Flask(__name__)
 
@@ -9,7 +11,7 @@ image_folder = "./output"
 @app.route('/')
 def index():
     # latest_image = get_latest_image()
-    return render_template("index.html", image="./image.png")
+    return render_template("index.html", image="./image.png", reload_interval=user_config["frame"]["reload_interval"])
 
 @app.route('/images/<filename>')
 def images(filename):
@@ -23,5 +25,5 @@ def create():
 
 if __name__ == '__main__':
     os.makedirs(image_folder, exist_ok=True)  # Ensure the folder exists
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=True)
 
