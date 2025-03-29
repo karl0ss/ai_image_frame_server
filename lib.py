@@ -5,8 +5,18 @@ import sys
 import litellm
 import time
 import os
-
+import requests
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
+
+def get_available_models():
+    url = user_config["comfyui"]["comfyui_url"] + "/object_info"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [])[0]
+    else:
+        print(f"Failed to fetch models: {response.status_code}")
+        return []
 
 def load_config():
     user_config = configparser.ConfigParser()
@@ -17,6 +27,7 @@ def load_config():
     except KeyError as e:
         logging.error(f"Missing configuration key: {e}")
         sys.exit(1)
+
 
 def rename_image():
     """Rename 'image.png' to a timestamped filename if it exists in the output folder."""
@@ -31,6 +42,7 @@ def rename_image():
     else:
         print("No image.png found.")
         return None
+
 
 def send_prompt_to_openwebui(prompt):
     response = litellm.completion(
@@ -62,8 +74,12 @@ def generate_image(file_name, comfy_prompt):
         wf.set_node_param("Save Image", "filename_prefix", file_name)
         wf.set_node_param("Empty Latent Image", "width", user_config["comfyui"]["width"])
         wf.set_node_param("Empty Latent Image", "height", user_config["comfyui"]["height"])
+        valid_models = list(set(get_available_models()) & set(user_config["comfyui"]["models"].split(",")))
+        if not valid_models:
+            raise Exception("No valid options available.")
+        model = random.choice(valid_models)
         wf.set_node_param(
-            "Load Checkpoint", "ckpt_name", user_config["comfyui"]["model"]
+            "Load Checkpoint", "ckpt_name", model
         )
         # Queue your workflow for completion
         logging.debug(f"Generating image: {file_name}")
@@ -79,9 +95,10 @@ def generate_image(file_name, comfy_prompt):
         logging.error(f"Failed to generate image for UID: {file_name}. Error: {e}")
 
 
-def create_image():
+def create_image(prompt):
     """Main function for generating images."""
-    prompt = send_prompt_to_openwebui(user_config["comfyui"]["prompt"])
+    if prompt is None:
+        prompt = send_prompt_to_openwebui(user_config["comfyui"]["prompt"])
     print(f"Generated prompt: {prompt}")
     generate_image("image", prompt)
 

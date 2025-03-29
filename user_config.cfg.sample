@@ -4,7 +4,7 @@ port = 5000
 
 [comfyui]
 comfyui_url = http://comfyui
-model = zavychromaxl_v100.safetensors
+models = zavychromaxl_v100.safetensors
 output_dir = ./output/
 prompt = "Be explicit, only return the prompt and no other text, Generate a random detailed prompt for stable diffusion."
 width = 1568

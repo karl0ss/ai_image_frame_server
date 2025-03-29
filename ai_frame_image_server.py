@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_from_directory, redirect, url_for
+from flask import Flask, render_template, send_from_directory, redirect, url_for, request, jsonify
 import os
 from lib import create_image, load_config
 
@@ -10,18 +10,22 @@ image_folder = "./output"
 
 @app.route('/')
 def index():
-    # latest_image = get_latest_image()
     return render_template("index.html", image="./image.png", reload_interval=user_config["frame"]["reload_interval"])
 
 @app.route('/images/<filename>')
 def images(filename):
     return send_from_directory(image_folder, filename)
 
-@app.route('/create')
+@app.route('/create', methods=["GET", "POST"])
 def create():
-    """Endpoint to create a new image."""
-    create_image()
+    """Endpoint to create a new image. Supports optional prompt via POST."""
+    prompt = request.form.get("prompt") if request.method == "POST" else None
+    create_image(prompt)  # Pass prompt to create_image()
+    
+    if request.method == "POST":
+        return jsonify({"message": "Image created", "prompt": prompt}), 200
     return redirect(url_for("index"))
+
 
 if __name__ == '__main__':
     os.makedirs(image_folder, exist_ok=True)  # Ensure the folder exists
