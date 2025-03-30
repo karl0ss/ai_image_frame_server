@@ -1,5 +1,7 @@
 [frame]
 reload_interval = 30000
+auto_regen = True
+regen_time = 03:00
 port = 5000
 
 [comfyui]
