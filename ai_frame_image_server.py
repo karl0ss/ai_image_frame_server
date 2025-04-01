@@ -25,6 +25,12 @@ def index():
         image="./image.png",
         reload_interval=user_config["frame"]["reload_interval"],
     )
+    
+
+@app.route("/gallery")
+def gallery():
+    images = [f for f in os.listdir(image_folder) if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif'))]
+    return render_template("gallery.html", images=images)
 
 
 @app.route("/images/<filename>")
