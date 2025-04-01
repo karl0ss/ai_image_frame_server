@@ -27,6 +27,7 @@
             background: rgba(0, 0, 0, 0.8);
             justify-content: center;
             align-items: center;
+            flex-direction: column;
         }
         .lightbox img {
             max-width: 90%;
@@ -41,30 +42,65 @@
             color: white;
             cursor: pointer;
         }
+        .arrow {
+            position: absolute;
+            top: 50%;
+            font-size: 40px;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            transform: translateY(-50%);
+        }
+        .arrow.left {
+            left: 20px;
+        }
+        .arrow.right {
+            right: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>Image Archive</h1>
     <div class="gallery">
         {% for image in images %}
-            <img src="{{ url_for('images', filename=image) }}" alt="Image" onclick="openLightbox(this.src)">
+            <img src="{{ url_for('images', filename=image) }}" alt="Image" onclick="openLightbox({{ loop.index0 }})">
         {% endfor %}
     </div>
 
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
         <span class="close" onclick="closeLightbox()">&times;</span>
+        <span class="arrow left" onclick="prevImage()">&#10094;</span>
         <img id="lightbox-img" src="">
+        <span class="arrow right" onclick="nextImage()">&#10095;</span>
     </div>
 
     <script>
-        function openLightbox(src) {
-            document.getElementById("lightbox-img").src = src;
+        let images = [
+            {% for image in images %}
+                "{{ url_for('images', filename=image) }}",
+            {% endfor %}
+        ];
+        let currentIndex = 0;
+
+        function openLightbox(index) {
+            currentIndex = index;
+            document.getElementById("lightbox-img").src = images[currentIndex];
             document.getElementById("lightbox").style.display = "flex";
         }
 
         function closeLightbox() {
             document.getElementById("lightbox").style.display = "none";
+        }
+
+        function nextImage() {
+            currentIndex = (currentIndex + 1) % images.length;
+            document.getElementById("lightbox-img").src = images[currentIndex];
+        }
+
+        function prevImage() {
+            currentIndex = (currentIndex - 1 + images.length) % images.length;
+            document.getElementById("lightbox-img").src = images[currentIndex];
         }
     </script>
 </body>
