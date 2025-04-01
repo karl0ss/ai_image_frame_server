@@ -85,5 +85,5 @@ if user_config["frame"]["auto_regen"] == "True":
     scheduler.start()
 
     os.makedirs(image_folder, exist_ok=True)
-        app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=True)
+    app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=True)
 

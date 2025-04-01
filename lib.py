@@ -77,9 +77,15 @@ def generate_image(file_name: str, comfy_prompt: str) -> None:
         api = ComfyApiWrapper(user_config["comfyui"]["comfyui_url"])
         wf = ComfyWorkflowWrapper("./workflow_api.json")
         # Set workflow parameters
-        wf.set_node_param("KSampler", "seed", random.getrandbits(32))  # Set a random seed for the sampler
-        wf.set_node_param("CLIP Text Encode (Prompt)", "text", comfy_prompt)  # Set the prompt to be used for image generation
-        wf.set_node_param("Save Image", "filename_prefix", file_name)  # Set the filename prefix for the generated image
+        wf.set_node_param(
+            "KSampler", "seed", random.getrandbits(32)
+        )  # Set a random seed for the sampler
+        wf.set_node_param(
+            "CLIP Text Encode (Prompt)", "text", comfy_prompt
+        )  # Set the prompt to be used for image generation
+        wf.set_node_param(
+            "Save Image", "filename_prefix", file_name
+        )  # Set the filename prefix for the generated image
         wf.set_node_param(  # Set image dimensions
             "Empty Latent Image", "width", user_config["comfyui"]["width"]
         )
@@ -94,10 +100,14 @@ def generate_image(file_name: str, comfy_prompt: str) -> None:
         if not valid_models:
             raise Exception("No valid options available.")
         model = random.choice(valid_models)
-        wf.set_node_param("Load Checkpoint", "ckpt_name", model)  # Set the model to be used for image generation
+        wf.set_node_param(
+            "Load Checkpoint", "ckpt_name", model
+        )  # Set the model to be used for image generation
         # Generate the image using the workflow and wait for completion
         logging.debug(f"Generating image: {file_name}")
-        results = api.queue_and_wait_images(wf, "Save Image")  # Queue the workflow and wait for image generation to complete
+        results = api.queue_and_wait_images(
+            wf, "Save Image"
+        )  # Queue the workflow and wait for image generation to complete
         rename_image()  # Rename the generated image file if it exists
         # Save the generated image to disk
         for filename, image_data in results.items():
