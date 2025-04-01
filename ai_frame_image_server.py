@@ -27,7 +27,7 @@ def index():
     )
     
 
-@app.route("/gallery")
+@app.route("/images")
 def gallery():
     images = [f for f in os.listdir(image_folder) if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif'))]
     return render_template("gallery.html", images=images)
