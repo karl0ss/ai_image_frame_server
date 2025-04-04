@@ -42,6 +42,7 @@ def gallery() -> str:
         str: The rendered HTML template.
     """
     images = [f for f in os.listdir(image_folder) if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif'))]
+    images = sorted(images, reverse=True)
     return render_template("gallery.html", images=images)
 
 
