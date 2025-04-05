@@ -9,6 +9,7 @@ from flask import (
 )
 import os
 import time
+import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 from lib import create_image, load_config
 
@@ -58,6 +59,7 @@ def images(filename: str) -> None:
     return send_from_directory(image_folder, filename)
 
 
+
 @app.route("/create", methods=["GET", "POST"])
 def create() -> str:
     """Handles image creation requests.
@@ -67,10 +69,12 @@ def create() -> str:
         str: Redirect to the main page or a JSON response.
     """
     prompt = request.form.get("prompt") if request.method == "POST" else None
-    create_image(prompt)
-    if request.method == "POST":
-        return jsonify({"message": "Image created", "prompt": prompt}), 200
-    return redirect(url_for("index"))
+
+    def create_image_in_background():
+        create_image(prompt)
+
+    threading.Thread(target=create_image_in_background).start()
+    return jsonify({"message": "Image creation started", "prompt": prompt if prompt else "Prompt will be generated"}), 200
 
 
 def scheduled_task() -> None:

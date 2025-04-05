@@ -7,6 +7,11 @@ import time
 import os
 import requests
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
+from tenacity import retry, stop_after_attempt, wait_fixed, before_log, retry_if_exception_type
+import nest_asyncio
+nest_asyncio.apply()
+
+logging.basicConfig(level=logging.INFO)
 
 
 def get_available_models() -> list:
@@ -60,22 +65,53 @@ def send_prompt_to_openwebui(prompt: str) -> str:
         model="openai/" + user_config["openwebui"]["model"],
         messages=[
             {
+                "role": "system",
+                "content": (
+                    "You are a prompt generator for Stable Diffusion. "
+                    "Generate a detailed and imaginative prompt with a strong visual theme. "
+                    "Focus on lighting, atmosphere, and artistic style. "
+                    "Keep the prompt concise, no extra commentary or formatting."
+                ),
+            },
+            {
                 "role": "user",
                 "content": prompt,
-            }
+            },
         ],
         api_key=user_config["openwebui"]["api_key"],
     )
 
-    return response["choices"][0]["message"]["content"].strip('"')
+    prompt = response["choices"][0]["message"]["content"].strip('"')
+    # response = litellm.completion(
+    #     api_base=user_config["openwebui"]["base_url"],
+    #     model="openai/brxce/stable-diffusion-prompt-generator:latest",
+    #     messages=[
+    #         {
+    #             "role": "user",
+    #             "content": prompt,
+    #         },
+    #     ],
+    #     api_key=user_config["openwebui"]["api_key"],
+    # )
+    # prompt = response["choices"][0]["message"]["content"].strip('"')
+    logging.debug(prompt)
+    return prompt
 
 
+# Define the retry logic using Tenacity
+@retry(
+    stop=stop_after_attempt(3),  
+    wait=wait_fixed(5),  
+    before=before_log(logging.getLogger(), logging.DEBUG),
+    retry=retry_if_exception_type(Exception)  
+)
 def generate_image(file_name: str, comfy_prompt: str) -> None:
-    """Generates an image using the Comfy API."""
+    """Generates an image using the Comfy API with retry logic."""
     try:
         # Initialize ComfyUI API and workflow
         api = ComfyApiWrapper(user_config["comfyui"]["comfyui_url"])
         wf = ComfyWorkflowWrapper("./workflow_api.json")
+        
         # Set workflow parameters
         wf.set_node_param(
             "KSampler", "seed", random.getrandbits(32)
@@ -92,6 +128,7 @@ def generate_image(file_name: str, comfy_prompt: str) -> None:
         wf.set_node_param(
             "Empty Latent Image", "height", user_config["comfyui"]["height"]
         )
+        
         # Validate available models and choose a random one
         valid_models = list(
             set(get_available_models())  # Get all available models from ComfyUI
@@ -103,12 +140,14 @@ def generate_image(file_name: str, comfy_prompt: str) -> None:
         wf.set_node_param(
             "Load Checkpoint", "ckpt_name", model
         )  # Set the model to be used for image generation
+        
         # Generate the image using the workflow and wait for completion
         logging.debug(f"Generating image: {file_name}")
         results = api.queue_and_wait_images(
             wf, "Save Image"
         )  # Queue the workflow and wait for image generation to complete
         rename_image()  # Rename the generated image file if it exists
+        
         # Save the generated image to disk
         for filename, image_data in results.items():
             with open(
@@ -116,16 +155,22 @@ def generate_image(file_name: str, comfy_prompt: str) -> None:
             ) as f:
                 f.write(image_data)
         logging.debug(f"Image generated successfully for UID: {file_name}")
+    
     except Exception as e:
         logging.error(f"Failed to generate image for UID: {file_name}. Error: {e}")
+        raise  # Re-raise the exception for Tenacity to handle retries
 
 
 def create_image(prompt: str | None = None) -> None:
     """Main function for generating images."""
     if prompt is None:
         prompt = send_prompt_to_openwebui(user_config["comfyui"]["prompt"])
-    print(f"Generated prompt: {prompt}")
-    generate_image("image", prompt)
+    if prompt:
+        logging.info(f"Generated prompt: {prompt}")  # Log generated prompt
+        generate_image("image", prompt)
+        print(f"Image generation started with prompt: {prompt}")
+    else:
+        logging.error("No prompt generated.")
 
 
 user_config = load_config()
