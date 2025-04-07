@@ -84,10 +84,19 @@ def scheduled_task() -> None:
 
 
 if user_config["frame"]["auto_regen"] == "True":
-    scheduler = BackgroundScheduler()
-    regen_time = user_config["frame"]["regen_time"].split(":")
-    scheduler.add_job(scheduled_task, "cron", hour=regen_time[0], minute=regen_time[1])
-    scheduler.start()
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        scheduler = BackgroundScheduler()
+        regen_time = user_config["frame"]["regen_time"].split(":")
+        scheduler.add_job(
+            scheduled_task,
+            "cron",
+            hour=regen_time[0],
+            minute=regen_time[1],
+            id="scheduled_task",
+            max_instances=1,  # prevent overlapping
+            replace_existing=True  # don't double-schedule
+        )
+        scheduler.start()
 
     os.makedirs(image_folder, exist_ok=True)
     app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=True)
