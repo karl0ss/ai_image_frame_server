@@ -6,12 +6,13 @@ port = 5000
 
 [comfyui]
 comfyui_url = http://comfyui
-models = zavychromaxl_v100.safetensors
+models = zavychromaxl_v100.safetensors,ponyDiffusionV6XL_v6StartWithThisOne.safetensors
 output_dir = ./output/
-prompt = "Be explicit, only return the prompt and no other text, Generate a random detailed prompt for stable diffusion."
+prompt = "Generate a random detailed prompt for stable diffusion."
 width = 1568
 height = 672
 
 [openwebui]
 base_url = https://openwebui
 api_key = sk-
+models = llama3:latest,cogito:14b,gemma3:12b

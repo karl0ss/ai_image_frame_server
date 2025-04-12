@@ -70,9 +70,10 @@ def rename_image() -> str | None:
 
 def create_prompt_on_openwebui(prompt: str) -> str:
     """Sends prompt to OpenWebui and returns the generated response."""
+    model = random.choice(user_config["openwebui"]["models"].split(","))
     response = litellm.completion(
         api_base=user_config["openwebui"]["base_url"],
-        model="openai/" + user_config["openwebui"]["model"],
+        model="openai/" + model,
         messages=[
             {
                 "role": "system",
