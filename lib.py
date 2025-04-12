@@ -31,6 +31,16 @@ def get_available_models() -> list:
         return []
 
 
+def cancel_current_job() -> list:
+    """Fetches available models from ComfyUI."""
+    url = user_config["comfyui"]["comfyui_url"] + "/interrupt"
+    response = requests.post(url)
+    if response.status_code == 200:
+        return "Cancelled"
+    else:
+        return "Failed to cancel"
+
+
 def load_config() -> configparser.ConfigParser:
     """Loads user configuration from ./user_config.cfg."""
     user_config = configparser.ConfigParser()
@@ -58,7 +68,7 @@ def rename_image() -> str | None:
         return None
 
 
-def send_prompt_to_openwebui(prompt: str) -> str:
+def create_prompt_on_openwebui(prompt: str) -> str:
     """Sends prompt to OpenWebui and returns the generated response."""
     response = litellm.completion(
         api_base=user_config["openwebui"]["base_url"],
@@ -164,7 +174,7 @@ def generate_image(file_name: str, comfy_prompt: str) -> None:
 def create_image(prompt: str | None = None) -> None:
     """Main function for generating images."""
     if prompt is None:
-        prompt = send_prompt_to_openwebui(user_config["comfyui"]["prompt"])
+        prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
     if prompt:
         logging.info(f"Generated prompt: {prompt}")  # Log generated prompt
         generate_image("image", prompt)

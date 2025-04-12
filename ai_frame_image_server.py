@@ -2,8 +2,6 @@ from flask import (
     Flask,
     render_template,
     send_from_directory,
-    redirect,
-    url_for,
     request,
     jsonify,
 )
@@ -11,7 +9,7 @@ import os
 import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-from lib import create_image, load_config
+from lib import create_image, load_config, create_prompt_on_openwebui, cancel_current_job
 
 user_config = load_config()
 app = Flask(__name__)
@@ -59,6 +57,17 @@ def images(filename: str) -> None:
     return send_from_directory(image_folder, filename)
 
 
+@app.route("/cancel", methods=["GET"])
+def cancel_job() -> None:
+    """
+    Serves the requested image file.
+    Args:
+        filename (str): The name of the image file.
+    Returns:
+        None: Sends the image file.
+    """
+    return cancel_current_job()
+
 
 @app.route("/create", methods=["GET", "POST"])
 def create() -> str:
@@ -70,6 +79,9 @@ def create() -> str:
     """
     prompt = request.form.get("prompt") if request.method == "POST" else None
 
+    if prompt is None:
+        prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
+        
     def create_image_in_background():
         create_image(prompt)
 
