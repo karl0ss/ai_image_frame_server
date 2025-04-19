@@ -1,0 +1,436 @@
+{
+  "8": {
+    "inputs": {
+      "samples": [
+        "62",
+        1
+      ],
+      "vae": [
+        "27",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "22": {
+    "inputs": {
+      "clip_name1": "t5/t5xxl_fp8_e4m3fn.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "DualCLIPLoader"
+    }
+  },
+  "27": {
+    "inputs": {
+      "vae_name": "FLUX1/ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "32": {
+    "inputs": {
+      "upscale_model": [
+        "33",
+        0
+      ],
+      "image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "ImageUpscaleWithModel",
+    "_meta": {
+      "title": "Upscale Image (using Model)"
+    }
+  },
+  "33": {
+    "inputs": {
+      "model_name": "4x-UltraSharp.pth"
+    },
+    "class_type": "UpscaleModelLoader",
+    "_meta": {
+      "title": "Load Upscale Model"
+    }
+  },
+  "34": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 0.5,
+      "image": [
+        "32",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Half size"
+    }
+  },
+  "35": {
+    "inputs": {
+      "unet_name": "flux1-dev-Q4_0.gguf"
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Unet Loader (GGUF)"
+    }
+  },
+  "40": {
+    "inputs": {
+      "int": 20
+    },
+    "class_type": "Int Literal (Image Saver)",
+    "_meta": {
+      "title": "Generation Steps"
+    }
+  },
+  "41": {
+    "inputs": {
+      "width": 720,
+      "height": 1080,
+      "aspect_ratio": "custom",
+      "swap_dimensions": "Off",
+      "upscale_factor": 2,
+      "prescale_factor": 1,
+      "batch_size": 1
+    },
+    "class_type": "CR Aspect Ratio",
+    "_meta": {
+      "title": "🔳 CR Aspect Ratio"
+    }
+  },
+  "42": {
+    "inputs": {
+      "filename": "THISFILE",
+      "path": "",
+      "extension": "png",
+      "steps": [
+        "40",
+        0
+      ],
+      "cfg": [
+        "52",
+        0
+      ],
+      "modelname": "flux1-dev-Q4_0.gguf",
+      "sampler_name": [
+        "50",
+        1
+      ],
+      "scheduler": [
+        "49",
+        1
+      ],
+      "positive": [
+        "44",
+        0
+      ],
+      "negative": [
+        "45",
+        0
+      ],
+      "seed_value": [
+        "48",
+        0
+      ],
+      "width": [
+        "41",
+        0
+      ],
+      "height": [
+        "41",
+        1
+      ],
+      "lossless_webp": true,
+      "quality_jpeg_or_webp": 100,
+      "optimize_png": false,
+      "counter": 0,
+      "denoise": [
+        "53",
+        0
+      ],
+      "clip_skip": 0,
+      "time_format": "%Y-%m-%d-%H%M%S",
+      "save_workflow_as_json": true,
+      "embed_workflow": true,
+      "additional_hashes": "",
+      "download_civitai_data": true,
+      "easy_remix": true,
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "images": [
+        "34",
+        0
+      ]
+    },
+    "class_type": "Image Saver",
+    "_meta": {
+      "title": "CivitAI Image Saver"
+    }
+  },
+  "44": {
+    "inputs": {
+      "text": "A council of wise owls wearing tiny glasses and wizard hats, gathered around an ancient floating book in the middle of an enchanted forest at twilight, glowing mushrooms providing light, whimsical and magical, highly detailed, children's book illustration style, soft colors, hand-drawn look",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      }
+    },
+    "class_type": "ttN text",
+    "_meta": {
+      "title": "Positive Prompt T5"
+    }
+  },
+  "45": {
+    "inputs": {
+      "text": "",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      }
+    },
+    "class_type": "ttN text",
+    "_meta": {
+      "title": "Negative Prompt"
+    }
+  },
+  "47": {
+    "inputs": {
+      "text": [
+        "44",
+        0
+      ],
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "clip": [
+        "68",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "48": {
+    "inputs": {
+      "seed": 903006749445372
+    },
+    "class_type": "Seed Generator (Image Saver)",
+    "_meta": {
+      "title": "Seed"
+    }
+  },
+  "49": {
+    "inputs": {
+      "scheduler": "beta"
+    },
+    "class_type": "Scheduler Selector (Comfy) (Image Saver)",
+    "_meta": {
+      "title": "Scheduler Selector"
+    }
+  },
+  "50": {
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "Sampler Selector (Image Saver)",
+    "_meta": {
+      "title": "Sampler Selector (Image Saver)"
+    }
+  },
+  "51": {
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "52": {
+    "inputs": {
+      "float": 3.5
+    },
+    "class_type": "Float Literal (Image Saver)",
+    "_meta": {
+      "title": "CFG"
+    }
+  },
+  "53": {
+    "inputs": {
+      "float": 1
+    },
+    "class_type": "Float Literal (Image Saver)",
+    "_meta": {
+      "title": "Denoise"
+    }
+  },
+  "60": {
+    "inputs": {
+      "clip_l": "",
+      "t5xxl": [
+        "44",
+        0
+      ],
+      "guidance": [
+        "52",
+        0
+      ],
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "clip": [
+        "68",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncodeFlux",
+    "_meta": {
+      "title": "CLIPTextEncodeFlux"
+    }
+  },
+  "62": {
+    "inputs": {
+      "noise": [
+        "65",
+        0
+      ],
+      "guider": [
+        "67",
+        0
+      ],
+      "sampler": [
+        "63",
+        0
+      ],
+      "sigmas": [
+        "64",
+        0
+      ],
+      "latent_image": [
+        "41",
+        5
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    }
+  },
+  "63": {
+    "inputs": {
+      "sampler_name": [
+        "50",
+        0
+      ]
+    },
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    }
+  },
+  "64": {
+    "inputs": {
+      "scheduler": [
+        "49",
+        0
+      ],
+      "steps": [
+        "40",
+        0
+      ],
+      "denoise": [
+        "53",
+        0
+      ],
+      "model": [
+        "68",
+        0
+      ]
+    },
+    "class_type": "BasicScheduler",
+    "_meta": {
+      "title": "BasicScheduler"
+    }
+  },
+  "65": {
+    "inputs": {
+      "noise_seed": [
+        "48",
+        0
+      ]
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "67": {
+    "inputs": {
+      "model": [
+        "68",
+        0
+      ],
+      "conditioning": [
+        "47",
+        0
+      ]
+    },
+    "class_type": "BasicGuider",
+    "_meta": {
+      "title": "BasicGuider"
+    }
+  },
+  "68": {
+    "inputs": {
+      "lora_01": "None",
+      "strength_01": 1,
+      "lora_02": "None",
+      "strength_02": 1,
+      "lora_03": "None",
+      "strength_03": 1,
+      "lora_04": "None",
+      "strength_04": 1,
+      "model": [
+        "35",
+        0
+      ],
+      "clip": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "Lora Loader Stack (rgthree)",
+    "_meta": {
+      "title": "Lora Loader Stack (rgthree)"
+    }
+  }
+}

@@ -110,12 +110,12 @@ def create_prompt_on_openwebui(prompt: str) -> str:
 
 
 # Define the retry logic using Tenacity
-@retry(
-    stop=stop_after_attempt(3),  
-    wait=wait_fixed(5),  
-    before=before_log(logging.getLogger(), logging.DEBUG),
-    retry=retry_if_exception_type(Exception)  
-)
+# @retry(
+#     stop=stop_after_attempt(3),  
+#     wait=wait_fixed(5),  
+#     before=before_log(logging.getLogger(), logging.DEBUG),
+#     retry=retry_if_exception_type(Exception)  
+# )
 def generate_image(file_name: str, comfy_prompt: str) -> None:
     """Generates an image using the Comfy API with retry logic."""
     try:
@@ -171,6 +171,62 @@ def generate_image(file_name: str, comfy_prompt: str) -> None:
         logging.error(f"Failed to generate image for UID: {file_name}. Error: {e}")
         raise  # Re-raise the exception for Tenacity to handle retries
 
+def generate_image_flux(file_name: str, comfy_prompt: str) -> None:
+    """Generates an image using the Comfy API with retry logic."""
+    try:
+        # Initialize ComfyUI API and workflow
+        api = ComfyApiWrapper(user_config["comfyui"]["comfyui_url"])
+        wf = ComfyWorkflowWrapper("./FLUX.json")
+
+        # Set workflow parameters
+        wf.set_node_param(
+            "Seed", "seed", random.getrandbits(32)
+        )  # Set a random seed for the sampler
+        wf.set_node_param(
+            "Positive Prompt T5", "text", comfy_prompt
+        )  # Set the prompt to be used for image generation
+        wf.set_node_param(
+            "CivitAI Image Saver", "filename", file_name
+        )  # Set the filename prefix for the generated image
+        # wf.set_node_param(  # Set image dimensions
+        #     "Empty Latent Image", "width", user_config["comfyui"]["width"]
+        # )
+        # wf.set_node_param(
+        #     "Empty Latent Image", "height", user_config["comfyui"]["height"]
+        # )
+        
+        # # Validate available models and choose a random one
+        # valid_models = list(
+        #     set(get_available_models())  # Get all available models from ComfyUI
+        #     & set(user_config["comfyui"]["models"].split(","))
+        # )
+        # if not valid_models:
+        #     raise Exception("No valid options available.")
+        # model = random.choice(valid_models)
+        # wf.set_node_param(
+        #     "Load Checkpoint", "ckpt_name", model
+        # )  # Set the model to be used for image generation
+        
+        # Generate the image using the workflow and wait for completion
+        logging.debug(f"Generating image: {file_name}")
+        results = api.queue_and_wait_images(
+            # wf, "Save Image"
+            wf, "CivitAI Image Saver"
+        )  # Queue the workflow and wait for image generation to complete
+        rename_image()  # Rename the generated image file if it exists
+        
+        # Save the generated image to disk
+        for filename, image_data in results.items():
+            with open(
+                user_config["comfyui"]["output_dir"] + file_name + ".png", "wb+"
+            ) as f:
+                f.write(image_data)
+        logging.debug(f"Image generated successfully for UID: {file_name}")
+    
+    except Exception as e:
+        logging.error(f"Failed to generate image for UID: {file_name}. Error: {e}")
+        raise  # Re-raise the exception for Tenacity to handle retries
+
 
 def create_image(prompt: str | None = None) -> None:
     """Main function for generating images."""
@@ -178,7 +234,10 @@ def create_image(prompt: str | None = None) -> None:
         prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
     if prompt:
         logging.info(f"Generated prompt: {prompt}")  # Log generated prompt
-        generate_image("image", prompt)
+        if user_config["comfyui"]["FLUX"]:
+            generate_image_flux("image", prompt)
+        else:
+            generate_image("image", prompt)
         print(f"Image generation started with prompt: {prompt}")
     else:
         logging.error("No prompt generated.")

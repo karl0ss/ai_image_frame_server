@@ -11,6 +11,7 @@ output_dir = ./output/
 prompt = "Generate a random detailed prompt for stable diffusion."
 width = 1568
 height = 672
+FLUX = False
 
 [openwebui]
 base_url = https://openwebui
