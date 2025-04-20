@@ -17,7 +17,7 @@ from tenacity import (
 )
 import nest_asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 nest_asyncio.apply()
 
@@ -26,17 +26,15 @@ logging.basicConfig(level=logging.INFO)
 LOG_FILE = "./prompts_log.jsonl"
 
 
-def load_recent_prompts(days=7):
+def load_recent_prompts(count=7):
     recent_prompts = []
-    cutoff_date = datetime.now().date() - timedelta(days=days)
 
     try:
         with open(LOG_FILE, "r") as f:
-            for line in f:
+            lines = f.readlines()
+            for line in lines[-count:]:
                 data = json.loads(line.strip())
-                prompt_date = datetime.strptime(data["date"], "%Y-%m-%d").date()
-                if prompt_date >= cutoff_date:
-                    recent_prompts.append(data["prompt"])
+                recent_prompts.append(data["prompt"])
     except FileNotFoundError:
         pass  # No prompts yet
 
