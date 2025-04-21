@@ -200,7 +200,7 @@ def generate_image(
         # Conditionally set model if node and param are provided
         if model_node and model_param:
             if user_config["comfyui"].get("FLUX"):
-                available_model_list = user_config["comfyui"]["confyui:flux"]["models"].split(",")
+                available_model_list = user_config["comfyui"]["comfyui:flux"]["models"].split(",")
             else:
                 available_model_list = user_config["comfyui"]["models"].split(",")
 
