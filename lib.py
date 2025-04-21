@@ -200,16 +200,15 @@ def generate_image(
         # Conditionally set model if node and param are provided
         if model_node and model_param:
             if user_config["comfyui"].get("FLUX"):
-                available_model_list = user_config["comfyui:flux"]["models"].split(",")
+                valid_models = user_config["comfyui:flux"]["models"].split(",")
             else:
                 available_model_list = user_config["comfyui"]["models"].split(",")
+                valid_models = list(
+                    set(get_available_models()) & set(available_model_list)
+                )
 
-            valid_models = list(
-                set(get_available_models()) & set(available_model_list)
-            )
-
-            if not valid_models:
-                raise Exception("No valid models available.")
+                if not valid_models:
+                    raise Exception("No valid models available.")
 
             model = random.choice(valid_models)
             wf.set_node_param(model_node, model_param, model)
