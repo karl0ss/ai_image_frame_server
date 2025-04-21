@@ -199,14 +199,21 @@ def generate_image(
 
         # Conditionally set model if node and param are provided
         if model_node and model_param:
+            if user_config["comfyui"].get("FLUX"):
+                available_model_list = user_config["comfyui"]["confyui:flux"]["models"].split(",")
+            else:
+                available_model_list = user_config["comfyui"]["models"].split(",")
+
             valid_models = list(
-                set(get_available_models())
-                & set(user_config["comfyui"]["models"].split(","))
+                set(get_available_models()) & set(available_model_list)
             )
+
             if not valid_models:
                 raise Exception("No valid models available.")
+
             model = random.choice(valid_models)
             wf.set_node_param(model_node, model_param, model)
+
 
         # Generate image
         logging.debug(f"Generating image: {file_name}")
@@ -244,8 +251,8 @@ def create_image(prompt: str | None = None) -> None:
                 seed_param="seed",
                 save_node="CivitAI Image Saver",
                 save_param="filename",
-                model_node=None,  # FLUX doesn't use model selection
-                model_param=None,
+                model_node="CivitAI Image Saver",
+                model_param="modelname",
             )
         else:
             generate_image("image", prompt)
