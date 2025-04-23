@@ -104,11 +104,21 @@ def rename_image() -> str | None:
 
 def create_prompt_on_openwebui(prompt: str) -> str:
     """Sends prompt to OpenWebui and returns the generated response."""
-    recent_prompts = load_recent_prompts()
+    # Unique list of recent prompts
+    recent_prompts = list(set(load_recent_prompts()))
+    # Decide on whether to include a topic (e.g., 30% chance to include)
+    topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
+    topic_instruction = ""
+    if random.random() < 0.3 and topics:
+        selected_topic = random.choice(topics)
+        topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
+
     user_content = (
         "Here are the prompts from the last 7 days:\n\n"
         + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
-        + "\n\nDo not repeat ideas, themes, or settings from the above. Now generate a new, completely original Stable Diffusion prompt that hasn't been done yet."
+        + "\n\nDo not repeat ideas, themes, or settings from the above. "
+        "Now generate a new, completely original Stable Diffusion prompt that hasn't been done yet."
+        + topic_instruction
     )
 
     model = random.choice(user_config["openwebui"]["models"].split(","))
