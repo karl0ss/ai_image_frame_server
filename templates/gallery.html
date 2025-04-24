@@ -5,17 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Archive</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: black;
+            color: white;
+            font-family: sans-serif;
+            padding: 2rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
         .gallery {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
-            gap: 10px;
+            gap: 20px;
         }
         .gallery img {
             width: 100%;
             height: auto;
-            border-radius: 5px;
+            border-radius: 10px;
             cursor: pointer;
+            transition: transform 0.2s ease;
         }
+        .gallery img:hover {
+            transform: scale(1.02);
+        }
+
         /* Lightbox styles */
         .lightbox {
             display: none;
@@ -24,15 +44,16 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             justify-content: center;
             align-items: center;
             flex-direction: column;
+            z-index: 999;
         }
         .lightbox img {
             max-width: 90%;
-            max-height: 90%;
-            border-radius: 5px;
+            max-height: 80%;
+            border-radius: 10px;
         }
         .lightbox .close {
             position: absolute;
@@ -84,10 +105,9 @@
         <span class="close" onclick="closeLightbox()">&times;</span>
         <span class="arrow left" onclick="prevImage()">&#10094;</span>
         <img id="lightbox-img" src="">
-        <p id="lightbox-prompt"></p> <!-- 👈 Add this line -->
+        <p id="lightbox-prompt"></p>
         <span class="arrow right" onclick="nextImage()">&#10095;</span>
     </div>
-
 
     <script>
         let images = [
@@ -106,22 +126,20 @@
             document.getElementById("lightbox-prompt").textContent = images[currentIndex].prompt;
             document.getElementById("lightbox").style.display = "flex";
         }
-        
 
         function closeLightbox() {
             document.getElementById("lightbox").style.display = "none";
         }
-        
+
         function nextImage() {
             currentIndex = (currentIndex + 1) % images.length;
             openLightbox(currentIndex);
         }
-        
+
         function prevImage() {
             currentIndex = (currentIndex - 1 + images.length) % images.length;
             openLightbox(currentIndex);
         }
-        
     </script>
 </body>
 </html>

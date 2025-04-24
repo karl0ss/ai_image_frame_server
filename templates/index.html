@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Image of the day</title>
+    <title>AI Image of the Day</title>
     <style>
         * {
             margin: 0;
@@ -12,28 +12,57 @@
         }
         body {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
             background: black;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .image-container {
+            max-width: 90vw;
+            max-height: 80vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
         }
         img {
-            width: 100vw;
-            height: 100vh;
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+        .prompt {
+            color: #ccc;
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px 20px;
+            border-radius: 10px;
+            max-width: 80vw;
+            text-align: left;
         }
     </style>
     <script>
         setInterval(() => {
             location.reload();
-        }, {{ reload_interval }});  // Refresh every 5 seconds
+        }, {{ reload_interval }});  // Refresh every X ms
     </script>
 </head>
 <body>
     {% if image %}
-        <img src="{{ url_for('images', filename=image) }}" alt="Latest Image">
+        <div class="image-container">
+            <img src="{{ url_for('images', filename=image) }}" alt="Latest Image">
+        </div>
+        {% if prompt %}
+            <div class="prompt">{{ prompt }}</div>
+            <a href="/images" id="archive-link">Archive</a>
+        {% endif %}
     {% else %}
-        <p style="color: white;">No images found</p>
+        <p>No images found</p>
     {% endif %}
 </body>
 </html>

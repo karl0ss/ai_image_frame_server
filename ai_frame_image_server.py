@@ -19,17 +19,20 @@ image_folder = "./output"
 @app.route("/", methods=["GET"])
 def index() -> str:
     """
-    Renders the main HTML template.
-    Args:
-        None
-    Returns:
-        str: The rendered HTML template.
+    Renders the main HTML template with image and prompt.
     """
+    image_filename = "./image.png"
+    image_path = os.path.join(image_folder, image_filename)
+
+    prompt = get_prompt_from_png(image_path)
+
     return render_template(
         "index.html",
-        image="./image.png",
+        image=image_filename,
+        prompt=prompt,
         reload_interval=user_config["frame"]["reload_interval"],
     )
+    
     
 @app.route("/images", methods=["GET"])
 def gallery() -> str:
