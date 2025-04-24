@@ -41,11 +41,11 @@ def gallery() -> str:
     images = []
     for f in os.listdir(image_folder):
         if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif')):
-            path = os.path.join(image_folder, f)
-            prompt = get_prompt_from_png(path)  # You’d define this function to read metadata
-            images.append({'filename': f, 'prompt': prompt})
+            path = os.path.join(image_folder, f)  # Full path to the image
+            prompt = get_prompt_from_png(path)  # Your method to extract the prompt
+            images.append({'filename': f, 'prompt': prompt, 'path': path})  # Add 'path' to the dictionary
 
-
+    images = sorted(images, key=lambda x: os.path.getmtime(x['path']), reverse=True)
     return render_template("gallery.html", images=images)
 
 

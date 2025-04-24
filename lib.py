@@ -274,7 +274,12 @@ def create_image(prompt: str | None = None) -> None:
 def get_prompt_from_png(path):
     try:
         with Image.open(path) as img:
-            meta = img.info.get("parameters").split("Negative")[0]  # ComfyUI usually stores it here
+            try:
+                # Flux workflow
+                meta = img.info.get("parameters").split("Negative")[0]
+            except AttributeError:
+                # SDXL workflow
+                meta = json.loads(img.info["prompt"])['6']['inputs']['text']
             return meta or ""
     except Exception as e:
         print(f"Error reading metadata from {path}: {e}")
