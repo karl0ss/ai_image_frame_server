@@ -63,7 +63,7 @@
     <h1>Image Archive</h1>
     <div class="gallery">
         {% for image in images %}
-            <img src="{{ url_for('images', filename=image) }}" alt="Image" onclick="openLightbox({{ loop.index0 }})">
+            <img src="{{ url_for('images', filename=image) }}" alt="Image" loading="lazy" onclick="openLightbox({{ loop.index0 }})">
         {% endfor %}
     </div>
 
