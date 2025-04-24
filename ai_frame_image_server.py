@@ -9,7 +9,7 @@ import os
 import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-from lib import create_image, load_config, create_prompt_on_openwebui, cancel_current_job
+from lib import create_image, load_config, create_prompt_on_openwebui, cancel_current_job, get_prompt_from_png
 
 user_config = load_config()
 app = Flask(__name__)
@@ -35,13 +35,17 @@ def index() -> str:
 def gallery() -> str:
     """
     Renders the gallery HTML template.
-    Args:
-        None
     Returns:
         str: The rendered HTML template.
     """
-    images = [f for f in os.listdir(image_folder) if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif'))]
-    images = sorted(images, reverse=True)
+    images = []
+    for f in os.listdir(image_folder):
+        if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif')):
+            path = os.path.join(image_folder, f)
+            prompt = get_prompt_from_png(path)  # You’d define this function to read metadata
+            images.append({'filename': f, 'prompt': prompt})
+
+
     return render_template("gallery.html", images=images)
 
 

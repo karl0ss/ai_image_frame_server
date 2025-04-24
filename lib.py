@@ -6,6 +6,7 @@ import litellm
 import time
 import os
 import requests
+from PIL import Image
 from typing import Optional
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
 from tenacity import (
@@ -270,5 +271,15 @@ def create_image(prompt: str | None = None) -> None:
         logging.error("No prompt generated.")
 
 
+def get_prompt_from_png(path):
+    try:
+        with Image.open(path) as img:
+            meta = img.info.get("parameters").split("Negative")[0]  # ComfyUI usually stores it here
+            return meta or ""
+    except Exception as e:
+        print(f"Error reading metadata from {path}: {e}")
+        return ""
+
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
+
