@@ -276,8 +276,8 @@ def get_prompt_from_png(path):
         with Image.open(path) as img:
             try:
                 # Flux workflow
-                meta = img.info.get("parameters").split("Negative")[0]
-            except AttributeError:
+                meta = json.loads(img.info["prompt"])['44']['inputs']['text']
+            except KeyError:
                 # SDXL workflow
                 meta = json.loads(img.info["prompt"])['6']['inputs']['text']
             return meta or ""
