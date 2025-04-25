@@ -5,6 +5,6 @@ script.log
 build/
 dist/
 user_config.cfg
-output/**.*
+output/
 prompts_log.jsonl
 publish.sh

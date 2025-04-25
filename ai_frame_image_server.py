@@ -9,7 +9,10 @@ import os
 import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-from lib import create_image, load_config, create_prompt_on_openwebui, cancel_current_job, get_prompt_from_png
+# from lib import create_image, load_config, create_prompt_on_openwebui, cancel_current_job, get_prompt_from_png
+from libs.generic import load_config, load_recent_prompts, get_prompt_from_png
+from libs.comfyui import cancel_current_job, create_image
+from libs.ollama import create_prompt_on_openwebui
 
 user_config = load_config()
 app = Flask(__name__)
@@ -50,6 +53,11 @@ def gallery() -> str:
 
     images = sorted(images, key=lambda x: os.path.getmtime(x['path']), reverse=True)
     return render_template("gallery.html", images=images)
+
+
+@app.route('/images/thumbnails/<path:filename>')
+def serve_thumbnail(filename):
+    return send_from_directory('output/thumbnails', filename)
 
 
 @app.route("/images/<filename>", methods=["GET"])

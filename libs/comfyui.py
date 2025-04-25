@@ -1,12 +1,7 @@
 import random
-import configparser
 import logging
-import sys
-import litellm
-import time
 import os
 import requests
-from PIL import Image
 from typing import Optional
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
 from tenacity import (
@@ -17,36 +12,17 @@ from tenacity import (
     retry_if_exception_type,
 )
 import nest_asyncio
-import json
-from datetime import datetime
+from libs.generic import rename_image, load_config, save_prompt
 from libs.create_thumbnail import generate_thumbnail
+from libs.ollama import create_prompt_on_openwebui
 nest_asyncio.apply()
 
 logging.basicConfig(level=logging.INFO)
 
 LOG_FILE = "./prompts_log.jsonl"
 
-
-def load_recent_prompts(count=7):
-    recent_prompts = []
-
-    try:
-        with open(LOG_FILE, "r") as f:
-            lines = f.readlines()
-            for line in lines[-count:]:
-                data = json.loads(line.strip())
-                recent_prompts.append(data["prompt"])
-    except FileNotFoundError:
-        pass  # No prompts yet
-
-    return recent_prompts
-
-
-def save_prompt(prompt):
-    entry = {"date": datetime.now().strftime("%Y-%m-%d"), "prompt": prompt}
-    with open(LOG_FILE, "a") as f:
-        f.write(json.dumps(entry) + "\n")
-
+user_config = load_config()
+output_folder = user_config["comfyui"]["output_dir"]
 
 
 def get_available_models() -> list:
@@ -74,92 +50,6 @@ def cancel_current_job() -> list:
         return "Cancelled"
     else:
         return "Failed to cancel"
-
-
-def load_config() -> configparser.ConfigParser:
-    """Loads user configuration from ./user_config.cfg."""
-    user_config = configparser.ConfigParser()
-    try:
-        user_config.read("./user_config.cfg")
-        logging.debug("Configuration loaded successfully.")
-        return user_config
-    except KeyError as e:
-        logging.error(f"Missing configuration key: {e}")
-        sys.exit(1)
-
-
-def rename_image() -> str | None:
-    """Renames 'image.png' in the output folder to a timestamped filename if it exists."""
-    old_path = os.path.join(user_config["comfyui"]["output_dir"], "image.png")
-
-    if os.path.exists(old_path):
-        new_filename = f"{str(time.time())}.png"
-        new_path = os.path.join(user_config["comfyui"]["output_dir"], new_filename)
-        os.rename(old_path, new_path)
-        generate_thumbnail(new_path)
-        print(f"Renamed 'image.png' to '{new_filename}'")
-        return new_filename
-    else:
-        print("No image.png found.")
-        return None
-
-
-def create_prompt_on_openwebui(prompt: str) -> str:
-    """Sends prompt to OpenWebui and returns the generated response."""
-    # Unique list of recent prompts
-    recent_prompts = list(set(load_recent_prompts()))
-    # Decide on whether to include a topic (e.g., 30% chance to include)
-    topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
-    topic_instruction = ""
-    if random.random() < 0.3 and topics:
-        selected_topic = random.choice(topics)
-        topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
-
-    user_content = (
-        "Here are the prompts from the last 7 days:\n\n"
-        + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
-        + "\n\nDo not repeat ideas, themes, or settings from the above. "
-        "Now generate a new, completely original Stable Diffusion prompt that hasn't been done yet."
-        + topic_instruction
-    )
-
-    model = random.choice(user_config["openwebui"]["models"].split(","))
-    response = litellm.completion(
-        api_base=user_config["openwebui"]["base_url"],
-        model="openai/" + model,
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a prompt generator for Stable Diffusion. "
-                    "Generate a detailed and imaginative prompt with a strong visual theme. "
-                    "Focus on lighting, atmosphere, and artistic style. "
-                    "Keep the prompt concise, no extra commentary or formatting."
-                ),
-            },
-            {
-                "role": "user",
-                "content": user_content,
-            },
-        ],
-        api_key=user_config["openwebui"]["api_key"],
-    )
-
-    prompt = response["choices"][0]["message"]["content"].strip('"')
-    # response = litellm.completion(
-    #     api_base=user_config["openwebui"]["base_url"],
-    #     model="openai/brxce/stable-diffusion-prompt-generator:latest",
-    #     messages=[
-    #         {
-    #             "role": "user",
-    #             "content": prompt,
-    #         },
-    #     ],
-    #     api_key=user_config["openwebui"]["api_key"],
-    # )
-    # prompt = response["choices"][0]["message"]["content"].strip('"')
-    logging.debug(prompt)
-    return prompt
 
 
 # Define the retry logic using Tenacity
@@ -225,7 +115,6 @@ def generate_image(
             model = random.choice(valid_models)
             wf.set_node_param(model_node, model_param, model)
 
-
         # Generate image
         logging.debug(f"Generating image: {file_name}")
         results = api.queue_and_wait_images(wf, save_node)
@@ -237,14 +126,15 @@ def generate_image(
             )
             with open(output_path, "wb+") as f:
                 f.write(image_data)
+            generate_thumbnail(output_path)
 
         logging.debug(f"Image generated successfully for UID: {file_name}")
 
     except Exception as e:
         logging.error(f"Failed to generate image for UID: {file_name}. Error: {e}")
         raise
-
-
+    
+    
 def create_image(prompt: str | None = None) -> None:
     """Main function for generating images."""
     if prompt is None:
@@ -270,22 +160,4 @@ def create_image(prompt: str | None = None) -> None:
         print(f"Image generation started with prompt: {prompt}")
     else:
         logging.error("No prompt generated.")
-
-
-def get_prompt_from_png(path):
-    try:
-        with Image.open(path) as img:
-            try:
-                # Flux workflow
-                meta = json.loads(img.info["prompt"])['44']['inputs']['text']
-            except KeyError:
-                # SDXL workflow
-                meta = json.loads(img.info["prompt"])['6']['inputs']['text']
-            return meta or ""
-    except Exception as e:
-        print(f"Error reading metadata from {path}: {e}")
-        return ""
-
-user_config = load_config()
-output_folder = user_config["comfyui"]["output_dir"]
-
+    

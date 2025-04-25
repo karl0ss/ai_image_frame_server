@@ -96,7 +96,9 @@
     <h1>Image Archive</h1>
     <div class="gallery">
         {% for image in images %}
-            <img src="{{ url_for('images', filename=image.filename) }}" alt="Image" loading="lazy" onclick="openLightbox({{ loop.index0 }})">
+            <!-- <img src="{{ url_for('images', filename=image.thumbnail_filename) }}" alt="Image" loading="lazy" onclick="openLightbox({{ loop.index0 }})"> -->
+            <img src="{{ url_for('images', filename='thumbnails/' + image.filename) }}" data-fullsrc="{{ url_for('images', filename=image.filename) }}" onclick="openLightbox({{ loop.index0 }})">
+
         {% endfor %}
     </div>
 
@@ -122,7 +124,8 @@
 
         function openLightbox(index) {
             currentIndex = index;
-            document.getElementById("lightbox-img").src = images[currentIndex].src;
+            <!-- document.getElementById("lightbox-img").src = images[currentIndex].src; -->
+            document.getElementById("lightbox-img").src = document.querySelectorAll('.gallery img')[currentIndex].dataset.fullsrc;
             document.getElementById("lightbox-prompt").textContent = images[currentIndex].prompt;
             document.getElementById("lightbox").style.display = "flex";
         }
