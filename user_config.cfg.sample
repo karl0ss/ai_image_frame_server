@@ -11,7 +11,10 @@ output_dir = ./output/
 prompt = "Generate a random detailed prompt for stable diffusion."
 width = 1568
 height = 672
-FLUX = False
+topics = 
+
+USE_FLUX = False
+ONLY_FLUX = False
 
 [comfyui:flux]
 models = flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf

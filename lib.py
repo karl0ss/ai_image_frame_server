@@ -249,27 +249,36 @@ def create_image(prompt: str | None = None) -> None:
     """Main function for generating images."""
     if prompt is None:
         prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
-    if prompt:
-        logging.info(f"Generated prompt: {prompt}")  # Log generated prompt
-        save_prompt(prompt)
-        if user_config["comfyui"]["FLUX"]:
-            generate_image(
-                file_name="image",
-                comfy_prompt=prompt,
-                workflow_path="./FLUX.json",
-                prompt_node="Positive Prompt T5",
-                seed_node="Seed",
-                seed_param="seed",
-                save_node="CivitAI Image Saver",
-                save_param="filename",
-                model_node="CivitAI Image Saver",
-                model_param="modelname",
-            )
-        else:
-            generate_image("image", prompt)
-        print(f"Image generation started with prompt: {prompt}")
-    else:
+
+    if not prompt:
         logging.error("No prompt generated.")
+        return
+    save_prompt(prompt)
+
+    use_flux = user_config["comfyui"].get("USE_FLUX", False)
+    only_flux = user_config["comfyui"].get("ONLY_FLUX", False)
+
+    selected_workflow = "SDXL"
+    if use_flux:
+        selected_workflow = "FLUX" if only_flux else random.choice(["FLUX", "SDXL"])
+
+    if selected_workflow == "FLUX":
+        generate_image(
+            file_name="image",
+            comfy_prompt=prompt,
+            workflow_path="./FLUX.json",
+            prompt_node="Positive Prompt T5",
+            seed_node="Seed",
+            seed_param="seed",
+            save_node="CivitAI Image Saver",
+            save_param="filename",
+            model_node="CivitAI Image Saver",
+            model_param="modelname",
+        )
+    else:
+        generate_image("image", prompt)
+
+    logging.info(f"{selected_workflow} generation started with prompt: {prompt}")
 
 
 def get_prompt_from_png(path):
