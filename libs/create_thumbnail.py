@@ -6,6 +6,8 @@ def generate_thumbnail(image_path: str, size=(500, 500)) -> str:
     Generates a thumbnail for a given image with a max size of 500x500,
     and saves it in a 'thumbnails' subdirectory alongside the original.
 
+    If the filename includes the word "image", the thumbnail will always be overwritten.
+
     Args:
         image_path (str): Path to the original image.
         size (tuple): Maximum width and height of the thumbnail.
@@ -20,7 +22,9 @@ def generate_thumbnail(image_path: str, size=(500, 500)) -> str:
     filename = os.path.basename(image_path)
     thumbnail_path = os.path.join(thumbnail_dir, filename)
 
-    if not os.path.exists(thumbnail_path):
+    should_overwrite = "image" in filename.lower()
+
+    if not os.path.exists(thumbnail_path) or should_overwrite:
         try:
             img = Image.open(image_path)
             img.thumbnail(size, Image.Resampling.LANCZOS)
