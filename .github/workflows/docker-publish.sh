@@ -2,7 +2,8 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches: [main]  # or any other branch you want
+    branches: [main]
+    tags: ['*']  # triggers on any tag push
   workflow_dispatch:
 
 jobs:
@@ -16,19 +17,31 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to custom Docker registry
+      - name: Log in to Docker Registry
         run: echo "${{ secrets.PASSWORD }}" | docker login ${{ secrets.REGISTRY }} -u "${{ secrets.USERNAME }}" --password-stdin
 
-      - name: Build Docker image
+      - name: Build and Push Docker Images
         run: |
           IMAGE_NAME="ai-frame-image-server"
           REGISTRY="${{ secrets.REGISTRY }}"
           USERNAME="${{ secrets.USERNAME }}"
-          TAG="latest"
-          FULL_IMAGE="$REGISTRY/$USERNAME/$IMAGE_NAME:$TAG"
+          IMAGE_LATEST="$REGISTRY/$USERNAME/$IMAGE_NAME:latest"
 
-          echo "🔧 Building image $FULL_IMAGE"
-          docker build -t $FULL_IMAGE .
+          # Always build and tag as latest
+          echo "🔧 Building $IMAGE_LATEST"
+          docker build -t $IMAGE_LATEST .
 
-          echo "📤 Pushing $FULL_IMAGE"
-          docker push $FULL_IMAGE
+          echo "📤 Pushing $IMAGE_LATEST"
+          docker push $IMAGE_LATEST
+
+          # If this is a tag push, tag the image accordingly
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            GIT_TAG="${GITHUB_REF#refs/tags/}"
+            IMAGE_TAGGED="$REGISTRY/$USERNAME/$IMAGE_NAME:$GIT_TAG"
+
+            echo "🏷️ Also tagging as $IMAGE_TAGGED"
+            docker tag $IMAGE_LATEST $IMAGE_TAGGED
+
+            echo "📤 Pushing $IMAGE_TAGGED"
+            docker push $IMAGE_TAGGED
+          fi
