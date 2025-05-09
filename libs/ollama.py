@@ -19,7 +19,7 @@ def create_prompt_on_openwebui(prompt: str) -> str:
     # Decide on whether to include a topic (e.g., 30% chance to include)
     topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
     topic_instruction = ""
-    if random.random() < 0.3 and topics:
+    if random.random() < 0.5 and topics:
         selected_topic = random.choice(topics)
         topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
 
