@@ -146,7 +146,7 @@ def create_image(prompt: str | None = None) -> None:
         return
     save_prompt(prompt)
 
-    use_flux = json.loads((user_config["comfyui"].get("USE_FLUX", False)).lower())
+    use_flux = json.loads((user_config["comfyui"].get("FLUX", False)).lower())
     only_flux = json.loads((user_config["comfyui"].get("ONLY_FLUX", False)).lower())
 
     selected_workflow = "SDXL"

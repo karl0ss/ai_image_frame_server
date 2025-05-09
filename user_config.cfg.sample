@@ -13,7 +13,7 @@ width = 1568
 height = 672
 topics = 
 
-USE_FLUX = False
+FLUX = False
 ONLY_FLUX = False
 
 [comfyui:flux]
