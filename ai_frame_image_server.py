@@ -14,6 +14,8 @@ from libs.generic import load_config, load_recent_prompts, get_prompt_from_png
 from libs.comfyui import cancel_current_job, create_image
 from libs.ollama import create_prompt_on_openwebui
 
+#workflow test commit
+
 user_config = load_config()
 app = Flask(__name__)
 
