@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,21 +11,25 @@
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             background-color: black;
             color: white;
             font-family: sans-serif;
             padding: 2rem;
         }
+
         h1 {
             text-align: center;
             margin-bottom: 2rem;
         }
+
         .gallery {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
             gap: 20px;
         }
+
         .gallery img {
             width: 100%;
             height: auto;
@@ -32,6 +37,7 @@
             cursor: pointer;
             transition: transform 0.2s ease;
         }
+
         .gallery img:hover {
             transform: scale(1.02);
         }
@@ -50,11 +56,13 @@
             flex-direction: column;
             z-index: 999;
         }
+
         .lightbox img {
             max-width: 90%;
             max-height: 80%;
             border-radius: 10px;
         }
+
         .lightbox .close {
             position: absolute;
             top: 20px;
@@ -63,6 +71,7 @@
             color: white;
             cursor: pointer;
         }
+
         .arrow {
             position: absolute;
             top: 50%;
@@ -72,9 +81,11 @@
             user-select: none;
             transform: translateY(-50%);
         }
+
         .arrow.left {
             left: 20px;
         }
+
         .arrow.right {
             right: 20px;
         }
@@ -90,17 +101,46 @@
             text-align: left;
             margin-top: 20px;
         }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+        }
+
+        .button-link {
+            background: #333;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .button-link:hover {
+            background: #555;
+        }
     </style>
 </head>
+
 <body>
     <h1>Image Archive</h1>
     <div class="gallery">
         {% for image in images %}
-            <!-- <img src="{{ url_for('images', filename=image.thumbnail_filename) }}" alt="Image" loading="lazy" onclick="openLightbox({{ loop.index0 }})"> -->
-            <img src="{{ url_for('images', filename='thumbnails/' + image.filename) }}" data-fullsrc="{{ url_for('images', filename=image.filename) }}" onclick="openLightbox({{ loop.index0 }})">
+        <!-- <img src="{{ url_for('images', filename=image.thumbnail_filename) }}" alt="Image" loading="lazy" onclick="openLightbox({{ loop.index0 }})"> -->
+        <img src="{{ url_for('images', filename='thumbnails/' + image.filename) }}"
+            data-fullsrc="{{ url_for('images', filename=image.filename) }}" onclick="openLightbox({{ loop.index0 }})">
 
         {% endfor %}
     </div>
+    <div class="button-group">
+        <a href="/" class="button-link">Back</a>
+    </div>
+
 
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
@@ -114,11 +154,11 @@
     <script>
         let images = [
             {% for image in images %}
-            {
-                src: "{{ url_for('images', filename=image.filename) }}",
+        {
+            src: "{{ url_for('images', filename=image.filename) }}",
                 prompt: `{{ image.prompt | escape }}`
-            },
-            {% endfor %}
+        },
+        {% endfor %}
         ];
         let currentIndex = 0;
 
@@ -145,4 +185,5 @@
         }
     </script>
 </body>
+
 </html>
