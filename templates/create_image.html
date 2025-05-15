@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create An Image</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        textarea {
+            width: 80vw;
+            height: 200px;
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 16px;
+            font-family: monospace;
+            resize: none;
+            margin-bottom: 20px;
+            background: #111;
+            color: #eee;
+            border: 1px solid #333;
+        }
+        .button-group {
+            display: flex;
+            gap: 20px;
+        }
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="margin-bottom: 20px;">Create An Image</h1>
+    <textarea id="prompt-box" placeholder="Enter your custom prompt here..."></textarea>
+    <div class="button-group">
+        <button onclick="location.href='/'">Back</button>
+        <button onclick="sendPrompt()">Send Prompt</button>
+        <button onclick="location.href='/create'">Random Prompt</button>
+    </div>
+
+    <script>
+        function sendPrompt() {
+            const prompt = document.getElementById('prompt-box').value;
+            const formData = new URLSearchParams();
+            formData.append('prompt', prompt);
+
+            fetch('/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData.toString()
+            }).then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else {
+                    alert("Image creation request sent.");
+                }
+            }).catch(error => {
+                alert("Error sending prompt: " + error);
+            });
+        }
+    </script>
+</body>
+</html>

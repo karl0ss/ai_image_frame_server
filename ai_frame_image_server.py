@@ -111,6 +111,17 @@ def scheduled_task() -> None:
     print(f"Executing scheduled task at {time.strftime('%Y-%m-%d %H:%M:%S')}")
     create_image(None)
 
+@app.route("/create_image", methods=["GET"])
+def create_image_endpoint() -> str:
+    """
+    Renders the create image template with image and prompt.
+    """
+
+    return render_template(
+        "create_image.html"
+    )
+    
+
 
 if user_config["frame"]["auto_regen"] == "True":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
