@@ -103,7 +103,8 @@ def create() -> str:
         create_image(prompt)
 
     threading.Thread(target=create_image_in_background).start()
-    return jsonify({"message": "Image creation started", "prompt": prompt if prompt else "Prompt will be generated"}), 200
+    # return jsonify({"message": "Image creation started", "prompt": prompt if prompt else "Prompt will be generated"}), 200
+    return render_template('image_queued.html', prompt=prompt)
 
 
 def scheduled_task() -> None:
