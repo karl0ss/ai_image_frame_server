@@ -1,0 +1,10 @@
+[bumpversion]
+current_version = "0.1.0"
+commit = true
+tag = true
+tag_name = "{new_version}"
+
+[[file]]
+filename = "__version__.py"
+parse = '__version__\s*=\s*"(?P<version>.*)"'
+serialize = '__version__ = "{new_version}"'
