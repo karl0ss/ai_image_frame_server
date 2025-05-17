@@ -36,24 +36,44 @@ def index() -> str:
         prompt=prompt,
         reload_interval=user_config["frame"]["reload_interval"],
     )
-    
-    
+
 @app.route("/images", methods=["GET"])
 def gallery() -> str:
-    """
-    Renders the gallery HTML template.
-    Returns:
-        str: The rendered HTML template.
-    """
     images = []
     for f in os.listdir(image_folder):
         if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif')):
-            path = os.path.join(image_folder, f)  # Full path to the image
-            details = get_details_from_png(path)  # Your method to extract the prompt
-            images.append({'filename': f, 'prompt': details["p"], 'model':details["m"], 'path': path})  # Add 'path' to the dictionary
-
-    images = sorted(images, key=lambda x: os.path.getmtime(x['path']), reverse=True)
+            images.append({'filename': f})
+    images = sorted(images, key=lambda x: os.path.getmtime(os.path.join(image_folder, x['filename'])), reverse=True)
     return render_template("gallery.html", images=images)
+    
+
+@app.route("/image-details/<filename>", methods=["GET"])
+def image_details(filename):
+    path = os.path.join(image_folder, filename)
+    if not os.path.exists(path):
+        return {"error": "File not found"}, 404
+    details = get_details_from_png(path)
+    return {
+        "prompt": details["p"],
+        "model": details["m"]
+    }
+    
+# @app.route("/images", methods=["GET"])
+# def gallery() -> str:
+#     """
+#     Renders the gallery HTML template.
+#     Returns:
+#         str: The rendered HTML template.
+#     """
+#     images = []
+#     for f in os.listdir(image_folder):
+#         if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif')):
+#             path = os.path.join(image_folder, f)  # Full path to the image
+#             details = get_details_from_png(path)  # Your method to extract the prompt
+#             images.append({'filename': f, 'prompt': details["p"], 'model':details["m"], 'path': path})  # Add 'path' to the dictionary
+
+#     images = sorted(images, key=lambda x: os.path.getmtime(x['path']), reverse=True)
+#     return render_template("gallery.html", images=images)
 
 
 @app.route('/images/thumbnails/<path:filename>')

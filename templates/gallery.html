@@ -132,7 +132,8 @@
     <div class="gallery">
         {% for image in images %}
         <img src="{{ url_for('images', filename='thumbnails/' + image.filename) }}"
-            data-fullsrc="{{ url_for('images', filename=image.filename) }}" onclick="openLightbox({{ loop.index0 }})">
+            data-fullsrc="{{ url_for('images', filename=image.filename) }}" data-filename="{{ image.filename }}"
+            loading="lazy" onclick="openLightbox(this)">
 
         {% endfor %}
     </div>
@@ -151,40 +152,31 @@
     </div>
 
     <script>
-        let images = [
-            {% for image in images %}
-        {
-            src: "{{ url_for('images', filename=image.filename) }}",
-                prompt: `{{ image.prompt | escape }}`,
-                    model: `{{ image.model | escape }}`
+        function openLightbox(imgEl) {
+            const filename = imgEl.dataset.filename;
+            const fullsrc = imgEl.dataset.fullsrc;
+            const lightbox = document.getElementById("lightbox");
 
-        },
-        {% endfor %}
-        ];
-        let currentIndex = 0;
+            // show the image immediately
+            document.getElementById("lightbox-img").src = fullsrc;
+            document.getElementById("lightbox-prompt").textContent = "Loading…";
+            lightbox.style.display = "flex";
 
-        function openLightbox(index) {
-            currentIndex = index;
-            <!-- document.getElementById("lightbox-img").src = images[currentIndex].src; -->
-            document.getElementById("lightbox-img").src = document.querySelectorAll('.gallery img')[currentIndex].dataset.fullsrc;
-            document.getElementById("lightbox-prompt").textContent = "Model:" + images[currentIndex].model + "\n\n" + images[currentIndex].prompt;
-            document.getElementById("lightbox").style.display = "flex";
+            // fetch details on‑demand
+            fetch(`/image-details/${encodeURIComponent(filename)}`)
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(data => {
+                    document.getElementById("lightbox-prompt").textContent =
+                        `Model: ${data.model}\n\n${data.prompt}`;
+                })
+                .catch(() => {
+                    document.getElementById("lightbox-prompt").textContent =
+                        "Couldn’t load details.";
+                });
         }
-
-        function closeLightbox() {
-            document.getElementById("lightbox").style.display = "none";
-        }
-
-        function nextImage() {
-            currentIndex = (currentIndex + 1) % images.length;
-            openLightbox(currentIndex);
-        }
-
-        function prevImage() {
-            currentIndex = (currentIndex - 1 + images.length) % images.length;
-            openLightbox(currentIndex);
-        }
+        function closeLightbox() { document.getElementById("lightbox").style.display = "none"; }
     </script>
+
 </body>
 
 </html>
