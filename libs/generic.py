@@ -63,16 +63,20 @@ def rename_image() -> str | None:
         return None
 
 
-def get_prompt_from_png(path):
+def get_details_from_png(path):
     try:
         with Image.open(path) as img:
             try:
                 # Flux workflow
-                meta = json.loads(img.info["prompt"])['44']['inputs']['text']
+                data = json.loads(img.info["prompt"])
+                prompt = data['44']['inputs']['text']
+                model = data['35']['inputs']['unet_name'].split(".")[0]
             except KeyError:
                 # SDXL workflow
-                meta = json.loads(img.info["prompt"])['6']['inputs']['text']
-            return meta or ""
+                data = json.loads(img.info["prompt"])
+                prompt = data['6']['inputs']['text']
+                model = data['4']['inputs']['ckpt_name']
+            return {"p":prompt,"m":model} or {"p":"","m":""}
     except Exception as e:
         print(f"Error reading metadata from {path}: {e}")
         return ""

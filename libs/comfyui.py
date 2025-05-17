@@ -63,7 +63,7 @@ def cancel_current_job() -> list:
 def generate_image(
     file_name: str,
     comfy_prompt: str,
-    workflow_path: str = "./workflow_api.json",
+    workflow_path: str = "./workflow_sdxl.json",
     prompt_node: str = "CLIP Text Encode (Prompt)",
     seed_node: str = "KSampler",
     seed_param: str = "seed",
@@ -84,7 +84,7 @@ def generate_image(
         wf.set_node_param(
             (
                 "Empty Latent Image"
-                if workflow_path.endswith("workflow_api.json")
+                if workflow_path.endswith("workflow_sdxl.json")
                 else "CR Aspect Ratio"
             ),
             "width",
@@ -93,7 +93,7 @@ def generate_image(
         wf.set_node_param(
             (
                 "Empty Latent Image"
-                if workflow_path.endswith("workflow_api.json")
+                if workflow_path.endswith("workflow_sdxl.json")
                 else "CR Aspect Ratio"
             ),
             "height",
@@ -157,7 +157,7 @@ def create_image(prompt: str | None = None) -> None:
         generate_image(
             file_name="image",
             comfy_prompt=prompt,
-            workflow_path="./FLUX.json",
+            workflow_path="./workflow_flux.json",
             prompt_node="Positive Prompt T5",
             seed_node="Seed",
             seed_param="seed",

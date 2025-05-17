@@ -9,8 +9,7 @@ import os
 import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-# from lib import create_image, load_config, create_prompt_on_openwebui, cancel_current_job, get_prompt_from_png
-from libs.generic import load_config, load_recent_prompts, get_prompt_from_png
+from libs.generic import load_config, load_recent_prompts, get_details_from_png
 from libs.comfyui import cancel_current_job, create_image
 from libs.ollama import create_prompt_on_openwebui
 
@@ -29,7 +28,7 @@ def index() -> str:
     image_filename = "./image.png"
     image_path = os.path.join(image_folder, image_filename)
 
-    prompt = get_prompt_from_png(image_path)
+    prompt = get_details_from_png(image_path)["p"]
 
     return render_template(
         "index.html",
@@ -50,8 +49,8 @@ def gallery() -> str:
     for f in os.listdir(image_folder):
         if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif')):
             path = os.path.join(image_folder, f)  # Full path to the image
-            prompt = get_prompt_from_png(path)  # Your method to extract the prompt
-            images.append({'filename': f, 'prompt': prompt, 'path': path})  # Add 'path' to the dictionary
+            details = get_details_from_png(path)  # Your method to extract the prompt
+            images.append({'filename': f, 'prompt': details["p"], 'model':details["m"], 'path': path})  # Add 'path' to the dictionary
 
     images = sorted(images, key=lambda x: os.path.getmtime(x['path']), reverse=True)
     return render_template("gallery.html", images=images)
