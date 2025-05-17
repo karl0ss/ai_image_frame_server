@@ -102,10 +102,13 @@
             margin-top: 20px;
         }
 
-        .button-group {
-            display: flex;
-            justify-content: center;
-            margin-top: 2rem;
+        /* Back button fixed top right */
+        .home-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 500;
+            /* lower than lightbox (999) */
         }
 
         .button-link {
@@ -166,14 +169,12 @@
 </head>
 
 <body>
+    <a href="/" class="button-link home-button">Home</a>
+
     <h1>Image Archive</h1>
 
     <!-- Empty gallery container; images will be loaded incrementally -->
     <div class="gallery" id="gallery"></div>
-
-    <div class="button-group">
-        <a href="/" class="button-link">Back</a>
-    </div>
 
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
@@ -198,7 +199,7 @@
         const batchSize = 6; // images to load per batch
         let loadedCount = 0;
         let currentIndex = 0;
-        const detailsCache = {};  // Cache for image details
+        const detailsCache = {}; // Cache for image details
 
         function createImageElement(image) {
             const img = document.createElement('img');
