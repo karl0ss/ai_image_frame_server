@@ -152,30 +152,62 @@
     </div>
 
     <script>
+        const images = Array.from(document.querySelectorAll('.gallery img'));
+        let currentIndex = 0;
+        const detailsCache = {};  // Cache object
+
         function openLightbox(imgEl) {
+            currentIndex = images.indexOf(imgEl);
+            showImageAndLoadDetails(currentIndex);
+            document.getElementById("lightbox").style.display = "flex";
+        }
+
+        function showImageAndLoadDetails(index) {
+            const imgEl = images[index];
             const filename = imgEl.dataset.filename;
             const fullsrc = imgEl.dataset.fullsrc;
-            const lightbox = document.getElementById("lightbox");
 
-            // show the image immediately
             document.getElementById("lightbox-img").src = fullsrc;
-            document.getElementById("lightbox-prompt").textContent = "Loading…";
-            lightbox.style.display = "flex";
 
-            // fetch details on‑demand
-            fetch(`/image-details/${encodeURIComponent(filename)}`)
-                .then(r => r.ok ? r.json() : Promise.reject())
-                .then(data => {
-                    document.getElementById("lightbox-prompt").textContent =
-                        `Model: ${data.model}\n\n${data.prompt}`;
-                })
-                .catch(() => {
-                    document.getElementById("lightbox-prompt").textContent =
-                        "Couldn’t load details.";
-                });
+            if (detailsCache[filename]) {
+                // If cached, use cached data immediately
+                document.getElementById("lightbox-prompt").textContent =
+                    `Model: ${detailsCache[filename].model}\n\n${detailsCache[filename].prompt}`;
+            } else {
+                // Otherwise show loading and fetch
+                document.getElementById("lightbox-prompt").textContent = "Loading…";
+
+                fetch(`/image-details/${encodeURIComponent(filename)}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error("Network response was not ok");
+                        return response.json();
+                    })
+                    .then(data => {
+                        detailsCache[filename] = data; // Cache the data
+                        document.getElementById("lightbox-prompt").textContent =
+                            `Model: ${data.model}\n\n${data.prompt}`;
+                    })
+                    .catch(() => {
+                        document.getElementById("lightbox-prompt").textContent = "Couldn’t load details.";
+                    });
+            }
         }
-        function closeLightbox() { document.getElementById("lightbox").style.display = "none"; }
+
+        function nextImage() {
+            currentIndex = (currentIndex + 1) % images.length;
+            showImageAndLoadDetails(currentIndex);
+        }
+
+        function prevImage() {
+            currentIndex = (currentIndex - 1 + images.length) % images.length;
+            showImageAndLoadDetails(currentIndex);
+        }
+
+        function closeLightbox() {
+            document.getElementById("lightbox").style.display = "none";
+        }
     </script>
+
 
 </body>
 
