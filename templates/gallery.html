@@ -2,8 +2,8 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Image Archive</title>
     <style>
         * {
@@ -129,40 +129,85 @@
 
 <body>
     <h1>Image Archive</h1>
-    <div class="gallery">
-        {% for image in images %}
-        <img src="{{ url_for('images', filename='thumbnails/' + image.filename) }}"
-            data-fullsrc="{{ url_for('images', filename=image.filename) }}" data-filename="{{ image.filename }}"
-            loading="lazy" onclick="openLightbox(this)">
 
-        {% endfor %}
-    </div>
+    <!-- Empty gallery container; images will be loaded incrementally -->
+    <div class="gallery" id="gallery"></div>
+
     <div class="button-group">
         <a href="/" class="button-link">Back</a>
     </div>
-
 
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
         <span class="close" onclick="closeLightbox()">&times;</span>
         <span class="arrow left" onclick="prevImage()">&#10094;</span>
-        <img id="lightbox-img" src="">
+        <img id="lightbox-img" src="" />
         <p id="lightbox-prompt"></p>
         <span class="arrow right" onclick="nextImage()">&#10095;</span>
     </div>
 
+    <!-- Pass image filenames from Flask to JS -->
     <script>
-        const images = Array.from(document.querySelectorAll('.gallery img'));
+        const allImages = [
+            {% for image in images %}
+            { filename: "{{ image.filename }}" },
+            {% endfor %}
+        ];
+    </script>
+
+    <script>
+        const gallery = document.getElementById('gallery');
+        const batchSize = 6; // images to load per batch
+        let loadedCount = 0;
         let currentIndex = 0;
-        const detailsCache = {};  // Cache object
+        const detailsCache = {};  // Cache for image details
+
+        function createImageElement(image) {
+            const img = document.createElement('img');
+            img.src = `/images/thumbnails/${image.filename}`;
+            img.dataset.fullsrc = `/images/${image.filename}`;
+            img.dataset.filename = image.filename;
+            img.loading = 'lazy';
+            img.style.cursor = 'pointer';
+            img.style.borderRadius = '10px';
+            img.addEventListener('click', () => openLightbox(img));
+            return img;
+        }
+
+        function loadNextBatch() {
+            const nextImages = allImages.slice(loadedCount, loadedCount + batchSize);
+            nextImages.forEach(image => {
+                const imgEl = createImageElement(image);
+                gallery.appendChild(imgEl);
+            });
+            loadedCount += nextImages.length;
+        }
+
+        // Load initial batch
+        loadNextBatch();
+
+        // Load more images when scrolling near bottom
+        window.addEventListener('scroll', () => {
+            if (loadedCount >= allImages.length) return; // all loaded
+            if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 100)) {
+                loadNextBatch();
+            }
+        });
+
+        // Get current images in gallery for lightbox navigation
+        function getGalleryImages() {
+            return Array.from(gallery.querySelectorAll('img'));
+        }
 
         function openLightbox(imgEl) {
+            const images = getGalleryImages();
             currentIndex = images.indexOf(imgEl);
             showImageAndLoadDetails(currentIndex);
             document.getElementById("lightbox").style.display = "flex";
         }
 
         function showImageAndLoadDetails(index) {
+            const images = getGalleryImages();
             const imgEl = images[index];
             const filename = imgEl.dataset.filename;
             const fullsrc = imgEl.dataset.fullsrc;
@@ -170,11 +215,9 @@
             document.getElementById("lightbox-img").src = fullsrc;
 
             if (detailsCache[filename]) {
-                // If cached, use cached data immediately
                 document.getElementById("lightbox-prompt").textContent =
                     `Model: ${detailsCache[filename].model}\n\n${detailsCache[filename].prompt}`;
             } else {
-                // Otherwise show loading and fetch
                 document.getElementById("lightbox-prompt").textContent = "Loading…";
 
                 fetch(`/image-details/${encodeURIComponent(filename)}`)
@@ -194,11 +237,13 @@
         }
 
         function nextImage() {
+            const images = getGalleryImages();
             currentIndex = (currentIndex + 1) % images.length;
             showImageAndLoadDetails(currentIndex);
         }
 
         function prevImage() {
+            const images = getGalleryImages();
             currentIndex = (currentIndex - 1 + images.length) % images.length;
             showImageAndLoadDetails(currentIndex);
         }
@@ -207,8 +252,6 @@
             document.getElementById("lightbox").style.display = "none";
         }
     </script>
-
-
 </body>
 
 </html>
