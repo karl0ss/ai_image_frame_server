@@ -9,7 +9,7 @@ import os
 import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-from libs.generic import load_config, load_recent_prompts, get_details_from_png
+from libs.generic import load_config, load_recent_prompts, get_details_from_png, get_current_version
 from libs.comfyui import cancel_current_job, create_image
 from libs.ollama import create_prompt_on_openwebui
 
@@ -30,11 +30,14 @@ def index() -> str:
 
     prompt = get_details_from_png(image_path)["p"]
 
+    version = get_current_version()
+
     return render_template(
         "index.html",
         image=image_filename,
         prompt=prompt,
         reload_interval=user_config["frame"]["reload_interval"],
+        version=version
     )
 
 @app.route("/images", methods=["GET"])

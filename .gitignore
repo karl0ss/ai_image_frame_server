@@ -8,3 +8,4 @@ user_config.cfg
 output/
 prompts_log.jsonl
 publish.sh
+test.py

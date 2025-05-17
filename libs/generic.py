@@ -1,3 +1,4 @@
+import subprocess
 import configparser
 import logging
 import sys
@@ -80,6 +81,22 @@ def get_details_from_png(path):
     except Exception as e:
         print(f"Error reading metadata from {path}: {e}")
         return ""
+
+def get_current_version():
+    try:
+        # Run the command and capture the output
+        result = subprocess.run(
+            ['bump-my-version', 'show', 'current_version'], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE,
+            text=True,  # to get string output instead of bytes
+            check=True  # raises exception if command fails
+        )
+        version = result.stdout.strip()
+        return version
+    except subprocess.CalledProcessError as e:
+        print("Error running bump-my-version:", e)
+        return None
 
 
 user_config = load_config()

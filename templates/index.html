@@ -2,8 +2,8 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Image of the Day</title>
     <style>
         * {
@@ -21,6 +21,7 @@
             background: black;
             color: white;
             font-family: Arial, sans-serif;
+            position: relative; /* So fixed elements inside work well */
         }
 
         .image-container {
@@ -74,6 +75,19 @@
         .button-link:hover {
             background: #555;
         }
+
+        /* New style for version number */
+        .version {
+            position: fixed;
+            bottom: 8px;
+            right: 12px;
+            color: #666;
+            font-size: 12px;
+            font-family: monospace;
+            user-select: none;
+            pointer-events: none;
+            opacity: 0.6;
+        }
     </style>
     <script>
         setInterval(() => {
@@ -85,7 +99,7 @@
 <body>
     {% if image %}
     <div class="image-container">
-        <img src="{{ url_for('images', filename=image) }}" alt="Latest Image">
+        <img src="{{ url_for('images', filename=image) }}" alt="Latest Image" />
     </div>
     {% if prompt %}
     <div class="prompt">{{ prompt }}</div>
@@ -97,4 +111,9 @@
     {% else %}
     <p>No images found</p>
     {% endif %}
+
+    <!-- Version number at bottom right -->
+    <div class="version">v{{ version }}</div>
 </body>
+
+</html>
