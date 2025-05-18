@@ -1,15 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Create An Image</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        /* ---------- reset ---------- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        /* ---------- layout ---------- */
         body {
             display: flex;
             flex-direction: column;
@@ -37,8 +36,9 @@
         .button-group {
             display: flex;
             gap: 20px;
+            align-items: center;
         }
-        button {
+        button, select {
             background: #333;
             color: white;
             border: none;
@@ -48,9 +48,8 @@
             cursor: pointer;
             transition: background 0.3s;
         }
-        button:hover {
-            background: #555;
-        }
+        button:hover,
+        select:hover { background: #555; }
 
         /* ---------- spinner ---------- */
         #spinner-overlay {
@@ -60,7 +59,7 @@
             align-items: center;
             justify-content: center;
             background: rgba(0, 0, 0, 0.6);
-            visibility: hidden;          /* toggled in JS */
+            visibility: hidden;
             z-index: 1000;
         }
         .spinner {
@@ -76,11 +75,24 @@
 </head>
 <body>
     <h1 style="margin-bottom: 20px;">Create An Image</h1>
+
     <textarea id="prompt-box" placeholder="Enter your custom prompt here..."></textarea>
+
     <div class="button-group">
         <button onclick="showSpinner(); location.href='/'">Back</button>
+
         <button onclick="sendPrompt()">Send Prompt</button>
-        <button onclick="showSpinner(); location.href='/create'">Random Prompt</button>
+
+        <button onclick="randomPrompt()">Random Prompt</button>
+
+
+        <!-- new model selector -->
+        <select id="model-select">
+            {% for m in models %}
+                <option value="{{ m }}">{{ m }}</option>
+            {% endfor %}
+          </select>
+
     </div>
 
     <!-- waiting overlay -->
@@ -90,15 +102,17 @@
 
     <script>
         const overlay = document.getElementById('spinner-overlay');
-        function showSpinner() {
-            overlay.style.visibility = 'visible';
-        }
+
+        function showSpinner() { overlay.style.visibility = 'visible'; }
 
         function sendPrompt() {
             showSpinner();
             const prompt = document.getElementById('prompt-box').value;
+            const model  = document.getElementById('model-select').value;
+
             const formData = new URLSearchParams();
             formData.append('prompt', prompt);
+            formData.append('model', model);
 
             fetch('/create', {
                 method: 'POST',
@@ -106,12 +120,33 @@
                 body: formData.toString()
             })
             .then(response => {
-                // If server redirects, follow it; otherwise go to /create
                 window.location.href = response.redirected ? response.url : '/create';
             })
             .catch(error => {
-                overlay.style.visibility = 'hidden';     // hide spinner on failure
+                overlay.style.visibility = 'hidden';
                 alert("Error sending prompt: " + error);
+            });
+        }
+
+        // wrapper for Random Prompt button so it also sends the model
+        function randomPrompt() {
+            showSpinner();
+            const model = document.getElementById('model-select').value;
+
+            const formData = new URLSearchParams();
+            formData.append('model', model);
+
+            fetch('/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData.toString()
+            })
+            .then(response => {
+                window.location.href = response.redirected ? response.url : '/create';
+            })
+            .catch(error => {
+                overlay.style.visibility = 'hidden';
+                alert("Error requesting random prompt: " + error);
             });
         }
     </script>

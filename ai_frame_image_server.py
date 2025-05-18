@@ -9,7 +9,7 @@ import os
 import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-from libs.generic import load_config, load_recent_prompts, get_details_from_png, get_current_version
+from libs.generic import load_config, load_recent_prompts, get_details_from_png, get_current_version, load_models_from_config
 from libs.comfyui import cancel_current_job, create_image
 from libs.ollama import create_prompt_on_openwebui
 
@@ -100,6 +100,8 @@ def create() -> str:
         str: Redirect to the main page or a JSON response.
     """
     prompt = request.form.get("prompt") if request.method == "POST" else None
+    model = request.form.get("model") if request.method == "POST" else None
+
 
     if prompt is None:
         prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
@@ -122,8 +124,11 @@ def create_image_endpoint() -> str:
     Renders the create image template with image and prompt.
     """
 
+    models = load_models_from_config()
+    models.insert(0, "Random")	
+
     return render_template(
-        "create_image.html"
+        "create_image.html", models=models
     )
     
 

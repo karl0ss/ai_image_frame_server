@@ -98,6 +98,12 @@ def get_current_version():
         print("Error running bump-my-version:", e)
         return None
 
+def load_models_from_config():
+    flux_models = user_config["comfyui:flux"]["models"].split(",")
+    sdxl_models = user_config["comfyui"]["models"].split(",")
+    all_models = flux_models + sdxl_models
+    return all_models
+
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
