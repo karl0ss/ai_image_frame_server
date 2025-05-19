@@ -100,14 +100,14 @@ def create() -> str:
         str: Redirect to the main page or a JSON response.
     """
     prompt = request.form.get("prompt") if request.method == "POST" else None
-    model = request.form.get("model") if request.method == "POST" else None
+    model = request.form.get("model") if request.method == "POST" else "Random"
 
 
     if prompt is None:
         prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
         
     def create_image_in_background():
-        create_image(prompt)
+        create_image(prompt, model)
 
     threading.Thread(target=create_image_in_background).start()
     return render_template('image_queued.html', prompt=prompt)
