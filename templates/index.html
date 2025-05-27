@@ -21,7 +21,8 @@
             background: black;
             color: white;
             font-family: Arial, sans-serif;
-            position: relative; /* So fixed elements inside work well */
+            position: relative;
+            /* So fixed elements inside work well */
         }
 
         .image-container {
@@ -50,7 +51,20 @@
             border-radius: 10px;
             max-width: 80vw;
             text-align: left;
+            max-height: 30vh;
+            /* NEW: limit height */
+            overflow-y: auto;
+            /* NEW: allow scrolling */
         }
+
+        /* Optional: Adjust height for smaller screens */
+        @media (max-width: 768px) {
+            .prompt {
+                max-height: 25vh;
+                /* even smaller on mobile */
+            }
+        }
+
 
         .button-group {
             display: flex;
