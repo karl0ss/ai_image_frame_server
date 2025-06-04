@@ -64,7 +64,7 @@ def generate_image(
     file_name: str,
     comfy_prompt: str,
     workflow_path: str = "./workflow_sdxl.json",
-    prompt_node: str = "CLIP Text Encode (Prompt)",
+    prompt_node: str = "Positive",
     seed_node: str = "KSampler",
     seed_param: str = "seed",
     save_node: str = "Save Image",
