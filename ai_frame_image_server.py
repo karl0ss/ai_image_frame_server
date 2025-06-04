@@ -4,6 +4,8 @@ from flask import (
     send_from_directory,
     request,
     jsonify,
+    redirect,
+    url_for
 )
 import os
 import time
@@ -92,26 +94,28 @@ def cancel_job() -> None:
 
 
 @app.route("/create", methods=["GET", "POST"])
-def create() -> str:
-    """Handles image creation requests.
-    Args:
-        None
-    Returns:
-        str: Redirect to the main page or a JSON response.
-    """
-    prompt = request.form.get("prompt") if request.method == "POST" else None
-    model = request.form.get("model") if request.method == "POST" else "Random"
+def create():
+    if request.method == "POST":
+        prompt = request.form.get("prompt")
+        model = request.form.get("model", "Random")
+
+        if not prompt:
+            prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
+
+        # Start generation in background
+        threading.Thread(target=lambda: create_image(prompt, model)).start()
+      
+        # store prompt in query string temporarily
+        return redirect(url_for("image_queued", prompt=prompt))
+
+    # For GET requests, just show the form to enter prompt
+    return render_template("create_image.html", models=load_models_from_config())
 
 
-    if prompt is None:
-        prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
-        
-    def create_image_in_background():
-        create_image(prompt, model)
-
-    threading.Thread(target=create_image_in_background).start()
-    return render_template('image_queued.html', prompt=prompt)
-
+@app.route("/image_queued")
+def image_queued():
+    prompt = request.args.get("prompt", "No prompt provided.")
+    return render_template("image_queued.html", prompt=prompt)
 
 def scheduled_task() -> None:
     """Executes the scheduled image generation task."""
