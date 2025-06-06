@@ -98,7 +98,7 @@ def cancel_job() -> None:
 def create():
     if request.method == "POST":
         prompt = request.form.get("prompt")
-        model = request.form.get("model", "Random")
+        model = request.form.get("model") or "Random"
 
         if not prompt:
             prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
@@ -130,7 +130,6 @@ def create_image_endpoint() -> str:
     """
 
     models = load_models_from_config()
-    models.insert(0, "Random")	
 
     return render_template(
         "create_image.html", models=models

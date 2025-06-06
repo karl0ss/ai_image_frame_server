@@ -128,12 +128,20 @@
 
         <button onclick="randomPrompt()">Random Prompt</button>
 
-
-        <!-- new model selector -->
         <select id="model-select">
-            {% for m in models %}
-            <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
-            {% endfor %}
+            <option value="" selected>Random</option>
+            <!-- Group: FLUX -->
+            <optgroup label="FLUX">
+                {% for m in models if 'flux' in m|lower %}
+                <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
+                {% endfor %}
+            </optgroup>
+            <!-- Group: SDXL -->
+            <optgroup label="SDXL">
+                {% for m in models if 'flux' not in m|lower %}
+                <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
+                {% endfor %}
+            </optgroup>
         </select>
 
     </div>
