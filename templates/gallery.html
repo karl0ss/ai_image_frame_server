@@ -263,7 +263,8 @@
 
             if (detailsCache[filename]) {
                 document.getElementById("lightbox-prompt").textContent =
-                    `Created On: ${detailsCache[filename].date}\n\n Model: ${detailsCache[filename].model}\n\n${detailsCache[filename].prompt}`;
+                    `Model:${detailsCache[filename].model} - Created:${detailsCache[filename].date}\n\n${detailsCache[filename].prompt}`;
+
             } else {
                 document.getElementById("lightbox-prompt").textContent = "Loading…";
 
@@ -275,7 +276,7 @@
                     .then(data => {
                         detailsCache[filename] = data; // Cache the data
                         document.getElementById("lightbox-prompt").textContent =
-                            `Model: ${data.model}\n\n${data.prompt}`;
+                            `Model:${data.model} - Created:${data.date}\n\n${data.prompt}`;
                     })
                     .catch(() => {
                         document.getElementById("lightbox-prompt").textContent = "Couldn’t load details.";
