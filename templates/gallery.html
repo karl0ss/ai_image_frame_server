@@ -286,8 +286,17 @@
 
         function nextImage() {
             const images = getGalleryImages();
-            currentIndex = (currentIndex + 1) % images.length;
-            showImageAndLoadDetails(currentIndex);
+            if (currentIndex + 1 >= images.length && loadedCount < allImages.length) {
+                loadNextBatch();
+                // Wait briefly to ensure DOM updates
+                setTimeout(() => {
+                    currentIndex++;
+                    showImageAndLoadDetails(currentIndex);
+                }, 100);
+            } else {
+                currentIndex = (currentIndex + 1) % images.length;
+                showImageAndLoadDetails(currentIndex);
+            }
         }
 
         function prevImage() {
@@ -295,6 +304,7 @@
             currentIndex = (currentIndex - 1 + images.length) % images.length;
             showImageAndLoadDetails(currentIndex);
         }
+
 
         function closeLightbox() {
             document.getElementById("lightbox").style.display = "none";
