@@ -18,4 +18,4 @@ moveable_tags = []
 commit_args = ""
 setup_hooks = []
 pre_commit_hooks = []
-post_commit_hooks = []
+post_commit_hooks = ["git push origin {new_version}"]
