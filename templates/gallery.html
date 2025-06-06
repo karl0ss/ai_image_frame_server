@@ -263,7 +263,7 @@
 
             if (detailsCache[filename]) {
                 document.getElementById("lightbox-prompt").textContent =
-                    `Model: ${detailsCache[filename].model}\n\n${detailsCache[filename].prompt}`;
+                    `Created On: ${detailsCache[filename].date}\n\n Model: ${detailsCache[filename].model}\n\n${detailsCache[filename].prompt}`;
             } else {
                 document.getElementById("lightbox-prompt").textContent = "Loading…";
 

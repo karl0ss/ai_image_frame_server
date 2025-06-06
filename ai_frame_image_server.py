@@ -60,7 +60,8 @@ def image_details(filename):
     details = get_details_from_png(path)
     return {
         "prompt": details["p"],
-        "model": details["m"]
+        "model": details["m"],
+        "date": details["d"]
     }
     
 

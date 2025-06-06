@@ -66,6 +66,7 @@ def rename_image() -> str | None:
 
 def get_details_from_png(path):
     try:
+        date = datetime.fromtimestamp(os.path.getctime(path)).strftime("%d-%m-%Y")
         with Image.open(path) as img:
             try:
                 # Flux workflow
@@ -77,7 +78,7 @@ def get_details_from_png(path):
                 data = json.loads(img.info["prompt"])
                 prompt = data['6']['inputs']['text']
                 model = data['4']['inputs']['ckpt_name']
-            return {"p":prompt,"m":model} or {"p":"","m":""}
+            return {"p":prompt,"m":model,"d":date} or {"p":"","m":"","c":""}
     except Exception as e:
         print(f"Error reading metadata from {path}: {e}")
         return ""

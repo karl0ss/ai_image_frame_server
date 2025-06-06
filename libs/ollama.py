@@ -24,12 +24,12 @@ def create_prompt_on_openwebui(prompt: str) -> str:
         topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
 
     user_content = (
-        "Here are the prompts from the last 7 days:\n\n"
-        + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
-        + "\n\nDo not repeat ideas, themes, or settings from the above. "
-        "Now generate a new, completely original Stable Diffusion prompt that hasn't been done yet."
+        "Can you generate me a really random image idea, Do not exceed 10 words. Use clear language, not poetic metaphors.”"
         + topic_instruction
+        + "Avoid prompts similar to the following:"
+        + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
     )
+
 
     model = random.choice(user_config["openwebui"]["models"].split(","))
     response = litellm.completion(
