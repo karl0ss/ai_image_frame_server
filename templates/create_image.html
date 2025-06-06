@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Create An Image</title>
     <style>
         /* ---------- reset ---------- */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
         /* ---------- layout ---------- */
         body {
@@ -20,6 +25,7 @@
             font-family: Arial, sans-serif;
             padding: 20px;
         }
+
         textarea {
             width: 80vw;
             height: 200px;
@@ -33,12 +39,15 @@
             color: #eee;
             border: 1px solid #333;
         }
+
         .button-group {
             display: flex;
             gap: 20px;
             align-items: center;
         }
-        button, select {
+
+        button,
+        select {
             background: #333;
             color: white;
             border: none;
@@ -48,8 +57,11 @@
             cursor: pointer;
             transition: background 0.3s;
         }
+
         button:hover,
-        select:hover { background: #555; }
+        select:hover {
+            background: #555;
+        }
 
         /* ---------- spinner ---------- */
         #spinner-overlay {
@@ -62,6 +74,7 @@
             visibility: hidden;
             z-index: 1000;
         }
+
         .spinner {
             width: 50px;
             height: 50px;
@@ -70,9 +83,39 @@
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 600px) {
+            body {
+                min-height: 100dvh;
+                height: auto;
+                justify-content: flex-start;
+                padding-top: 40px;
+            }
+
+            .button-group {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+            }
+
+            button,
+            select {
+                width: 100%;
+            }
+
+            textarea {
+                height: 150px;
+            }
+        }
     </style>
 </head>
+
 <body>
     <h1 style="margin-bottom: 20px;">Create An Image</h1>
 
@@ -89,9 +132,9 @@
         <!-- new model selector -->
         <select id="model-select">
             {% for m in models %}
-                <option value="{{ m }}">{{ m }}</option>
+            <option value="{{ m }}">{{ m }}</option>
             {% endfor %}
-          </select>
+        </select>
 
     </div>
 
@@ -108,7 +151,7 @@
         function sendPrompt() {
             showSpinner();
             const prompt = document.getElementById('prompt-box').value;
-            const model  = document.getElementById('model-select').value;
+            const model = document.getElementById('model-select').value;
 
             const formData = new URLSearchParams();
             formData.append('prompt', prompt);
@@ -119,13 +162,13 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData.toString()
             })
-            .then(response => {
-                window.location.href = response.redirected ? response.url : '/create';
-            })
-            .catch(error => {
-                overlay.style.visibility = 'hidden';
-                alert("Error sending prompt: " + error);
-            });
+                .then(response => {
+                    window.location.href = response.redirected ? response.url : '/create';
+                })
+                .catch(error => {
+                    overlay.style.visibility = 'hidden';
+                    alert("Error sending prompt: " + error);
+                });
         }
 
         // wrapper for Random Prompt button so it also sends the model
@@ -141,14 +184,15 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: formData.toString()
             })
-            .then(response => {
-                window.location.href = response.redirected ? response.url : '/create';
-            })
-            .catch(error => {
-                overlay.style.visibility = 'hidden';
-                alert("Error requesting random prompt: " + error);
-            });
+                .then(response => {
+                    window.location.href = response.redirected ? response.url : '/create';
+                })
+                .catch(error => {
+                    overlay.style.visibility = 'hidden';
+                    alert("Error requesting random prompt: " + error);
+                });
         }
     </script>
 </body>
+
 </html>
