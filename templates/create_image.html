@@ -132,7 +132,7 @@
         <!-- new model selector -->
         <select id="model-select">
             {% for m in models %}
-            <option value="{{ m }}">{{ m }}</option>
+            <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
             {% endfor %}
         </select>
 
