@@ -67,4 +67,4 @@ def create_prompt_on_openwebui(prompt: str) -> str:
     # )
     # prompt = response["choices"][0]["message"]["content"].strip('"')
     logging.debug(prompt)
-    return prompt
+    return prompt.split(": ")[-1]
