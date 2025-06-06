@@ -2,8 +2,7 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches: [main]
-    tags: ["*"] # triggers on any tag push
+    tags: ["*"] # Only triggers on tag pushes
   workflow_dispatch:
 
 jobs:
@@ -27,23 +26,15 @@ jobs:
           IMAGE_NAME="ai-frame-image-server"
           REGISTRY="${{ secrets.REGISTRY }}"
           USERNAME="${{ secrets.USERNAME }}"
+          GIT_TAG="${GITHUB_REF#refs/tags/}"
+          IMAGE_TAGGED="$REGISTRY/$USERNAME/$IMAGE_NAME:$GIT_TAG"
           IMAGE_LATEST="$REGISTRY/$USERNAME/$IMAGE_NAME:latest"
 
-          # Always build and tag as latest
-          echo "🔧 Building $IMAGE_LATEST"
-          docker build -t $IMAGE_LATEST .
+          echo "🔧 Building $IMAGE_TAGGED and $IMAGE_LATEST"
+          docker build -t $IMAGE_LATEST -t $IMAGE_TAGGED .
+
+          echo "📤 Pushing $IMAGE_TAGGED"
+          docker push $IMAGE_TAGGED
 
           echo "📤 Pushing $IMAGE_LATEST"
           docker push $IMAGE_LATEST
-
-          # If this is a tag push, tag the image accordingly
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            GIT_TAG="${GITHUB_REF#refs/tags/}"
-            IMAGE_TAGGED="$REGISTRY/$USERNAME/$IMAGE_NAME:$GIT_TAG"
-
-            echo "🏷️ Also tagging as $IMAGE_TAGGED"
-            docker tag $IMAGE_LATEST $IMAGE_TAGGED
-
-            echo "📤 Pushing $IMAGE_TAGGED"
-            docker push $IMAGE_TAGGED
-          fi
