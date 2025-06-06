@@ -121,8 +121,29 @@ def generate_image(
     except Exception as e:
         logging.error(f"Failed to generate image for UID: {file_name}. Error: {e}")
         raise
-    
-    
+
+def select_model(model: str) -> tuple[str, str]:
+    use_flux = json.loads(user_config["comfyui"].get("FLUX", "false").lower())
+    only_flux = json.loads(user_config["comfyui"].get("ONLY_FLUX", "false").lower())
+
+    if model == "Random":
+        selected_workflow = "FLUX" if (use_flux and (only_flux or random.choice([True, False]))) else "SDXL"
+    elif "flux" in model.lower():
+        selected_workflow = "FLUX"
+    else:
+        selected_workflow = "SDXL"
+
+    if model == "Random":
+        if selected_workflow == "FLUX":
+            valid_models = user_config["comfyui:flux"]["models"].split(",")
+        else:  # SDXL
+            available_model_list = user_config["comfyui"]["models"].split(",")
+            valid_models = list(set(get_available_models()) & set(available_model_list))
+        model = random.choice(valid_models)
+
+    return selected_workflow, model
+
+
 def create_image(prompt: str | None = None, model: str = "Random") -> None:
     """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
 
@@ -134,18 +155,9 @@ def create_image(prompt: str | None = None, model: str = "Random") -> None:
         return
 
     save_prompt(prompt)
-    use_flux  = json.loads(user_config["comfyui"].get("FLUX", "false").lower())
-    only_flux = json.loads(user_config["comfyui"].get("ONLY_FLUX", "false").lower())
-    if model == "Random":
-        selected_workflow = "FLUX" if (use_flux and (only_flux or random.choice([True, False]))) else "SDXL"
-    elif "flux" in model.lower(): 
-        selected_workflow = "FLUX"
-    else:                                   
-        selected_workflow = "SDXL"
+    selected_workflow, model = select_model(model)
+
     if selected_workflow == "FLUX":
-        if model == "Random":
-            valid_models = user_config["comfyui:flux"]["models"].split(",")
-            model = random.choice(valid_models)
         generate_image(
             file_name="image",
             comfy_prompt=prompt,
@@ -160,12 +172,6 @@ def create_image(prompt: str | None = None, model: str = "Random") -> None:
             model=model
         )
     else:  # SDXL
-        if model == "Random":
-            available_model_list = user_config["comfyui"]["models"].split(",")
-            valid_models = list(set(get_available_models()) & set(available_model_list))
-            model = random.choice(valid_models)
         generate_image("image", comfy_prompt=prompt, model=model)
 
     logging.info(f"{selected_workflow} generation started with prompt: {prompt}")
-
-    

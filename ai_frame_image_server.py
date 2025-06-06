@@ -12,7 +12,7 @@ import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 from libs.generic import load_config, load_recent_prompts, get_details_from_png, get_current_version, load_models_from_config
-from libs.comfyui import cancel_current_job, create_image
+from libs.comfyui import cancel_current_job, create_image, select_model
 from libs.ollama import create_prompt_on_openwebui
 
 #workflow test commit
@@ -98,7 +98,7 @@ def cancel_job() -> None:
 def create():
     if request.method == "POST":
         prompt = request.form.get("prompt")
-        model = request.form.get("model") or "Random"
+        selected_workflow, model = select_model(request.form.get("model") or "Random")
 
         if not prompt:
             prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
@@ -106,8 +106,7 @@ def create():
         # Start generation in background
         threading.Thread(target=lambda: create_image(prompt, model)).start()
       
-        # store prompt in query string temporarily
-        return redirect(url_for("image_queued", prompt=prompt))
+        return redirect(url_for("image_queued", prompt=prompt, model=model.split(".")[0]))
 
     # For GET requests, just show the form to enter prompt
     return render_template("create_image.html", models=load_models_from_config())
@@ -116,7 +115,8 @@ def create():
 @app.route("/image_queued")
 def image_queued():
     prompt = request.args.get("prompt", "No prompt provided.")
-    return render_template("image_queued.html", prompt=prompt)
+    model = request.args.get("model", "No model selected.").split(".")[0]
+    return render_template("image_queued.html", prompt=prompt, model=model)
 
 def scheduled_task() -> None:
     """Executes the scheduled image generation task."""
