@@ -3,6 +3,8 @@ reload_interval = 30000
 auto_regen = True
 regen_time = 03:00
 port = 5000
+create_requires_auth = False
+password_for_auth = create
 
 [comfyui]
 comfyui_url = http://comfyui

@@ -5,22 +5,33 @@ from flask import (
     request,
     jsonify,
     redirect,
-    url_for
+    url_for,
+    session,
+    render_template_string,
 )
 import os
 import time
 import threading
 from apscheduler.schedulers.background import BackgroundScheduler
-from libs.generic import load_config, load_recent_prompts, get_details_from_png, get_current_version, load_models_from_config
+from libs.generic import (
+    load_config,
+    load_recent_prompts,
+    get_details_from_png,
+    get_current_version,
+    load_models_from_config,
+)
 from libs.comfyui import cancel_current_job, create_image, select_model
 from libs.ollama import create_prompt_on_openwebui
 
-#workflow test commit
+# workflow test commit
 
 user_config = load_config()
+
 app = Flask(__name__)
+app.secret_key = os.environ.get('SECRET_KEY') 
 
 image_folder = "./output"
+
 
 @app.route("/", methods=["GET"])
 def index() -> str:
@@ -39,18 +50,34 @@ def index() -> str:
         image=image_filename,
         prompt=prompt,
         reload_interval=user_config["frame"]["reload_interval"],
-        version=version
+        version=version,
     )
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        if request.form['password'] == user_config["frame"]["password_for_auth"]:
+            session['authenticated'] = True
+            return render_template("create_image.html", models=load_models_from_config())
+        else:
+            return  redirect(url_for('login'))
+    return render_template('login.html')
+
 
 @app.route("/images", methods=["GET"])
 def gallery() -> str:
     images = []
     for f in os.listdir(image_folder):
-        if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif')):
-            images.append({'filename': f})
-    images = sorted(images, key=lambda x: os.path.getmtime(os.path.join(image_folder, x['filename'])), reverse=True)
+        if f.lower().endswith(("png", "jpg", "jpeg", "gif")):
+            images.append({"filename": f})
+    images = sorted(
+        images,
+        key=lambda x: os.path.getmtime(os.path.join(image_folder, x["filename"])),
+        reverse=True,
+    )
     return render_template("gallery.html", images=images)
-    
+
 
 @app.route("/image-details/<filename>", methods=["GET"])
 def image_details(filename):
@@ -58,16 +85,12 @@ def image_details(filename):
     if not os.path.exists(path):
         return {"error": "File not found"}, 404
     details = get_details_from_png(path)
-    return {
-        "prompt": details["p"],
-        "model": details["m"],
-        "date": details["d"]
-    }
-    
+    return {"prompt": details["p"], "model": details["m"], "date": details["d"]}
 
-@app.route('/images/thumbnails/<path:filename>')
+
+@app.route("/images/thumbnails/<path:filename>")
 def serve_thumbnail(filename):
-    return send_from_directory('output/thumbnails', filename)
+    return send_from_directory("output/thumbnails", filename)
 
 
 @app.route("/images/<filename>", methods=["GET"])
@@ -105,8 +128,10 @@ def create():
 
         # Start generation in background
         threading.Thread(target=lambda: create_image(prompt, model)).start()
-      
-        return redirect(url_for("image_queued", prompt=prompt, model=model.split(".")[0]))
+
+        return redirect(
+            url_for("image_queued", prompt=prompt, model=model.split(".")[0])
+        )
 
     # For GET requests, just show the form to enter prompt
     return render_template("create_image.html", models=load_models_from_config())
@@ -118,23 +143,23 @@ def image_queued():
     model = request.args.get("model", "No model selected.").split(".")[0]
     return render_template("image_queued.html", prompt=prompt, model=model)
 
+
 def scheduled_task() -> None:
     """Executes the scheduled image generation task."""
     print(f"Executing scheduled task at {time.strftime('%Y-%m-%d %H:%M:%S')}")
     create_image(None)
+
 
 @app.route("/create_image", methods=["GET"])
 def create_image_endpoint() -> str:
     """
     Renders the create image template with image and prompt.
     """
-
+    if user_config["frame"]["create_requires_auth"] == "True" and not session.get('authenticated'):
+        return redirect(url_for("login"))
     models = load_models_from_config()
 
-    return render_template(
-        "create_image.html", models=models
-    )
-    
+    return render_template("create_image.html", models=models)
 
 
 if user_config["frame"]["auto_regen"] == "True":
@@ -148,10 +173,9 @@ if user_config["frame"]["auto_regen"] == "True":
             minute=regen_time[1],
             id="scheduled_task",
             max_instances=1,  # prevent overlapping
-            replace_existing=True  # don't double-schedule
+            replace_existing=True,  # don't double-schedule
         )
         scheduler.start()
 
     os.makedirs(image_folder, exist_ok=True)
     app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=True)
-
