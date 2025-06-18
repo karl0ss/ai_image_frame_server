@@ -105,6 +105,11 @@ def load_models_from_config():
     all_models = flux_models + sdxl_models
     return all_models
 
+def load_topics_from_config():
+    topics = user_config["comfyui"]["topics"].split(", ")
+    return topics
+
+
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]

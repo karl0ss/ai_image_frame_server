@@ -19,6 +19,7 @@ from libs.generic import (
     get_details_from_png,
     get_current_version,
     load_models_from_config,
+    load_topics_from_config
 )
 from libs.comfyui import cancel_current_job, create_image, select_model
 from libs.ollama import create_prompt_on_openwebui
@@ -122,9 +123,10 @@ def create():
     if request.method == "POST":
         prompt = request.form.get("prompt")
         selected_workflow, model = select_model(request.form.get("model") or "Random")
+        topic = request.form.get("topic")
 
         if not prompt:
-            prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
+            prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"], topic)
 
         # Start generation in background
         threading.Thread(target=lambda: create_image(prompt, model)).start()
@@ -158,8 +160,9 @@ def create_image_endpoint() -> str:
     if user_config["frame"]["create_requires_auth"] == "True" and not session.get('authenticated'):
         return redirect(url_for("login"))
     models = load_models_from_config()
+    topics = load_topics_from_config()
 
-    return render_template("create_image.html", models=models)
+    return render_template("create_image.html", models=models, topics=topics)
 
 
 if user_config["frame"]["auto_regen"] == "True":

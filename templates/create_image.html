@@ -144,6 +144,17 @@
             </optgroup>
         </select>
 
+        <select id="topic-select">
+            <option value="">No Topic</option>
+            <option value="random">Random</option>
+            <optgroup label="Topics">
+                {% for t in topics %}
+                <option value="{{ t }}">{{ t }}</option>
+                {% endfor %}
+            </optgroup>
+        </select>
+        
+
     </div>
 
     <!-- waiting overlay -->
@@ -183,9 +194,11 @@
         function randomPrompt() {
             showSpinner();
             const model = document.getElementById('model-select').value;
+            const topic = document.getElementById('topic-select').value; // this line was missing
 
             const formData = new URLSearchParams();
             formData.append('model', model);
+            formData.append('topic', topic); // include topic in request
 
             fetch('/create', {
                 method: 'POST',

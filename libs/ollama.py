@@ -12,15 +12,23 @@ LOG_FILE = "./prompts_log.jsonl"
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
 
-def create_prompt_on_openwebui(prompt: str) -> str:
+def create_prompt_on_openwebui(prompt: str, topic: str = "random") -> str:
     """Sends prompt to OpenWebui and returns the generated response."""
+    topic_instruction = ""
+    selected_topic = ""
     # Unique list of recent prompts
     recent_prompts = list(set(load_recent_prompts()))
-    # Decide on whether to include a topic (e.g., 30% chance to include)
-    topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
-    topic_instruction = ""
-    if random.random() < 0.5 and topics:
+    if topic == "random":
+        topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
         selected_topic = random.choice(topics)
+    elif topic != "":
+        selected_topic = topic
+    else:
+        # Decide on whether to include a topic (e.g., 30% chance to include)
+        topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
+        if random.random() < 0.3 and topics:
+            selected_topic = random.choice(topics)
+    if selected_topic != "":
         topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
 
     user_content = (
