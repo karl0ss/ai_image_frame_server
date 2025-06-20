@@ -11,6 +11,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": false,
+            "env": {"SECRET_KEY":"dkdkdk"}
             // "args": [
             //     "--num_inference_steps",
             //     "6",

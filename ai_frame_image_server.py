@@ -60,7 +60,7 @@ def login():
     if request.method == 'POST':
         if request.form['password'] == user_config["frame"]["password_for_auth"]:
             session['authenticated'] = True
-            return render_template("create_image.html", models=load_models_from_config())
+            return render_template("create_image.html", models=load_models_from_config(), topics=load_topics_from_config())
         else:
             return  redirect(url_for('login'))
     return render_template('login.html')
@@ -159,10 +159,8 @@ def create_image_endpoint() -> str:
     """
     if user_config["frame"]["create_requires_auth"] == "True" and not session.get('authenticated'):
         return redirect(url_for("login"))
-    models = load_models_from_config()
-    topics = load_topics_from_config()
 
-    return render_template("create_image.html", models=models, topics=topics)
+    return render_template("create_image.html", models=load_models_from_config(), topics=load_topics_from_config())
 
 
 if user_config["frame"]["auto_regen"] == "True":
