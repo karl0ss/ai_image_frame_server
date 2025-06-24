@@ -147,6 +147,31 @@
       <button name="new_model" type="submit">Add Model</button>
     </form>
   </div>
+  <div class="box" style="width: 100%;">
+    <h2>Config Values</h2>
+    <form method="post" style="display:flex; flex-wrap:wrap; justify-content:space-between;">
+      {% for section in config_sections %}
+      <div class="box">
+        <h2>[{{ section }}]</h2>
+        {% for key, value in config_values[section].items() %}
+        <label>{{ key }}</label>
+        {% if value.lower() in ['true', 'false'] %}
+        <select name="{{ section }}:{{ key }}">
+          <option value="True" {% if value.lower()=='true' %}selected{% endif %}>True</option>
+          <option value="False" {% if value.lower()=='false' %}selected{% endif %}>False</option>
+        </select>
+        {% else %}
+        <input type="text" name="{{ section }}:{{ key }}" value="{{ value }}">
+        {% endif %}
+
+        {% endfor %}
+      </div>
+      {% endfor %}
+      <div class="box" style="width: 100%;">
+        <button type="submit">Save Config</button>
+      </div>
+    </form>
+  </div>
 
   <div class="back-button-wrapper">
     <a href="/" class="button-link">Back to Home</a>

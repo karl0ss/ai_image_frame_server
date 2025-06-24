@@ -32,12 +32,9 @@ def get_available_models() -> list:
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
-        return (
-            data.get("CheckpointLoaderSimple", {})
-            .get("input", {})
-            .get("required", {})
-            .get("ckpt_name", [])[0]
-        )
+        general = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [])[0]
+        flux = data.get("UnetLoaderGGUF", {}).get("input", {}).get("required", {}).get("unet_name", [])[0]
+        return general + flux
     else:
         print(f"Failed to fetch models: {response.status_code}")
         return []

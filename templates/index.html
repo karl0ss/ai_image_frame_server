@@ -92,9 +92,19 @@
             font-size: 12px;
             font-family: monospace;
             user-select: none;
-            pointer-events: none;
             opacity: 0.6;
         }
+
+        .version a {
+            color: inherit;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .version a:hover {
+            text-decoration: underline;
+        }
+
 
         @media (max-width: 768px) {
             .image-container {
@@ -148,7 +158,9 @@
     {% endif %}
 
     <!-- Version number at bottom right -->
-    <div class="version">v{{ version }}</div>
+    <div class="version">
+        <a href="{{ url_for('settings_route.config_editor') }}">v{{ version }}</a>
+    </div>
 </body>
 
 </html>

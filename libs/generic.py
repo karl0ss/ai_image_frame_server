@@ -102,12 +102,15 @@ def get_current_version():
 def load_models_from_config():
     flux_models = load_config()["comfyui:flux"]["models"].split(",")
     sdxl_models = load_config()["comfyui"]["models"].split(",")
-    all_models = flux_models + sdxl_models
-    return all_models
+    sorted_flux_models = sorted(flux_models, key=str.lower)
+    sorted_sdxl_models = sorted(sdxl_models, key=str.lower)
+    return sorted_sdxl_models, sorted_flux_models
+
 
 def load_topics_from_config():
-    topics = load_config()["comfyui"]["topics"].split(", ")
-    return topics
+    topics = load_config()["comfyui"]["topics"].split(",")
+    sorted_topics = sorted(topics, key=str.lower)
+    return sorted_topics
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
