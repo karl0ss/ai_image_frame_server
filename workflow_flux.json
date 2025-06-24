@@ -235,7 +235,8 @@
   },
   "48": {
     "inputs": {
-      "seed": 903006749445372
+      "seed": 903006749445372,
+      "increment": 1
     },
     "class_type": "Seed Generator (Image Saver)",
     "_meta": {
