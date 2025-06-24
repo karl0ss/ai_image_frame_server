@@ -6,13 +6,34 @@
         1
       ],
       "vae": [
-        "73",
+        "27",
         0
       ]
     },
     "class_type": "VAEDecode",
     "_meta": {
       "title": "VAE Decode"
+    }
+  },
+  "22": {
+    "inputs": {
+      "clip_name1": "t5/t5xxl_fp8_e4m3fn.safetensors",
+      "clip_name2": "clip_l.safetensors",
+      "type": "flux",
+      "device": "default"
+    },
+    "class_type": "DualCLIPLoader",
+    "_meta": {
+      "title": "DualCLIPLoader"
+    }
+  },
+  "27": {
+    "inputs": {
+      "vae_name": "FLUX1/ae.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
     }
   },
   "32": {
@@ -28,7 +49,7 @@
     },
     "class_type": "ImageUpscaleWithModel",
     "_meta": {
-      "title": "Upscale Image"
+      "title": "Upscale Image (using Model)"
     }
   },
   "33": {
@@ -38,6 +59,29 @@
     "class_type": "UpscaleModelLoader",
     "_meta": {
       "title": "Load Upscale Model"
+    }
+  },
+  "34": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 0.5,
+      "image": [
+        "32",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Half size"
+    }
+  },
+  "35": {
+    "inputs": {
+      "unet_name": "flux1-dev-Q4_0.gguf"
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Unet Loader (GGUF)"
     }
   },
   "40": {
@@ -82,7 +126,6 @@
         "50",
         1
       ],
-      "scheduler_name": "normal",
       "positive": [
         "44",
         0
@@ -125,7 +168,7 @@
         ]
       },
       "images": [
-        "32",
+        "34",
         0
       ]
     },
@@ -177,18 +220,18 @@
         ]
       },
       "clip": [
-        "72",
-        0
+        "68",
+        1
       ]
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "Prompt Encoder"
+      "title": "CLIP Text Encode (Prompt)"
     }
   },
   "48": {
     "inputs": {
-      "seed": 293172455045072,
+      "seed": 903006749445372,
       "increment": 1
     },
     "class_type": "Seed Generator (Image Saver)",
@@ -202,7 +245,7 @@
     },
     "class_type": "Scheduler Selector (Comfy) (Image Saver)",
     "_meta": {
-      "title": "Scheduler"
+      "title": "Scheduler Selector"
     }
   },
   "50": {
@@ -211,25 +254,64 @@
     },
     "class_type": "Sampler Selector (Image Saver)",
     "_meta": {
-      "title": "Sampler"
+      "title": "Sampler Selector (Image Saver)"
+    }
+  },
+  "51": {
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
     }
   },
   "52": {
     "inputs": {
-      "float": 3.500000000000001
+      "float": 3.5
     },
     "class_type": "Float Literal (Image Saver)",
     "_meta": {
-      "title": "CFG Scale"
+      "title": "CFG"
     }
   },
   "53": {
     "inputs": {
-      "float": 1.0000000000000002
+      "float": 1
     },
     "class_type": "Float Literal (Image Saver)",
     "_meta": {
       "title": "Denoise"
+    }
+  },
+  "60": {
+    "inputs": {
+      "clip_l": "",
+      "t5xxl": [
+        "44",
+        0
+      ],
+      "guidance": [
+        "52",
+        0
+      ],
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "clip": [
+        "68",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncodeFlux",
+    "_meta": {
+      "title": "CLIPTextEncodeFlux"
     }
   },
   "62": {
@@ -257,7 +339,7 @@
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "Custom Sampler"
+      "title": "SamplerCustomAdvanced"
     }
   },
   "63": {
@@ -269,7 +351,7 @@
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "KSampler Select"
+      "title": "KSamplerSelect"
     }
   },
   "64": {
@@ -287,13 +369,13 @@
         0
       ],
       "model": [
-        "74",
+        "68",
         0
       ]
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "Sigma Generator"
+      "title": "BasicScheduler"
     }
   },
   "65": {
@@ -305,13 +387,13 @@
     },
     "class_type": "RandomNoise",
     "_meta": {
-      "title": "Noise Generator"
+      "title": "RandomNoise"
     }
   },
   "67": {
     "inputs": {
       "model": [
-        "74",
+        "68",
         0
       ],
       "conditioning": [
@@ -321,48 +403,31 @@
     },
     "class_type": "BasicGuider",
     "_meta": {
-      "title": "Prompt Guider"
+      "title": "BasicGuider"
     }
   },
-  "72": {
+  "68": {
     "inputs": {
-      "clip_name1": "t5-v1_1-xxl-encoder-Q4_K_M.gguf",
-      "clip_name2": "clip_l.safetensors",
-      "type": "flux",
-      "device": "cuda:1",
-      "virtual_vram_gb": 4,
-      "use_other_vram": false,
-      "expert_mode_allocations": ""
+      "lora_01": "None",
+      "strength_01": 1,
+      "lora_02": "None",
+      "strength_02": 1,
+      "lora_03": "None",
+      "strength_03": 1,
+      "lora_04": "None",
+      "strength_04": 1,
+      "model": [
+        "35",
+        0
+      ],
+      "clip": [
+        "22",
+        0
+      ]
     },
-    "class_type": "DualCLIPLoaderGGUFDisTorchMultiGPU",
+    "class_type": "Lora Loader Stack (rgthree)",
     "_meta": {
-      "title": "DualCLIPLoaderGGUFDisTorchMultiGPU"
-    }
-  },
-  "73": {
-    "inputs": {
-      "vae_name": "FLUX1/ae.safetensors",
-      "device": "cuda:1"
-    },
-    "class_type": "VAELoaderMultiGPU",
-    "_meta": {
-      "title": "VAELoaderMultiGPU"
-    }
-  },
-  "74": {
-    "inputs": {
-      "unet_name": "flux1-dev-Q4_0.gguf",
-      "dequant_dtype": "default",
-      "patch_dtype": "default",
-      "patch_on_device": false,
-      "device": "cuda:0",
-      "virtual_vram_gb": 8,
-      "use_other_vram": true,
-      "expert_mode_allocations": ""
-    },
-    "class_type": "UnetLoaderGGUFAdvancedDisTorchMultiGPU",
-    "_meta": {
-      "title": "UnetLoaderGGUFAdvancedDisTorchMultiGPU"
+      "title": "Lora Loader Stack (rgthree)"
     }
   }
 }

@@ -164,7 +164,7 @@ def create_image(prompt: str | None = None, model: str = "Random") -> None:
             seed_param="seed",
             save_node="CivitAI Image Saver",
             save_param="filename",
-            model_node="Unet Loader (GGUF)",
+            model_node="UnetLoaderGGUFAdvancedDisTorchMultiGPU",
             model_param="unet_name",
             model=model
         )
