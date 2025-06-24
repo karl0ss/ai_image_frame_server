@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Config Editor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: black;
+      color: white;
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .box {
+      background: #1a1a1a;
+      padding: 20px;
+      border-radius: 12px;
+      width: 45%;
+      min-width: 300px;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    form {
+      margin-bottom: 20px;
+    }
+
+    select,
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+
+    button {
+      width: 100%;
+      background: #333;
+      color: white;
+      text-decoration: none;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s;
+      border: none;
+    }
+
+    button:hover {
+      background: #555;
+    }
+
+    .button-group {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .button-link {
+      background: #333;
+      height: 40px;
+      color: white;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: background 0.3s;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .button-link:hover {
+      background: #555;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .box {
+        width: 90%;
+        margin-bottom: 30px;
+      }
+    }
+
+    .back-button-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="box">
+    <h2>Topics</h2>
+    <form method="post">
+      <select name="delete_topic">
+        {% for item in topics %}
+        <option value="{{ item }}">{{ item }}</option>
+        {% endfor %}
+      </select>
+      <button name="delete_topic" type="submit">Delete Selected Topic</button>
+    </form>
+
+    <form method="post">
+      <input type="text" name="new_topic" placeholder="New topic">
+      <button name="new_topic" type="submit">Add Topic</button>
+    </form>
+  </div>
+
+  <div class="box">
+    <h2>Models</h2>
+    <form method="post">
+      <select name="delete_model">
+        {% for item in models %}
+        <option value="{{ item }}">{{ item }}</option>
+        {% endfor %}
+      </select>
+      <button name="delete_model" type="submit">Delete Selected Model</button>
+    </form>
+
+    <form method="post">
+      <input type="text" name="new_model" placeholder="New model">
+      <button name="new_model" type="submit">Add Model</button>
+    </form>
+  </div>
+
+  <div class="back-button-wrapper">
+    <a href="/" class="button-link">Back to Home</a>
+  </div>
+
+</body>
+
+</html>

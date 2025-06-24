@@ -134,7 +134,7 @@
 <body>
     {% if image %}
     <div class="image-container">
-        <img src="{{ url_for('images', filename=image) }}" alt="Latest Image" />
+        <img src="{{ url_for('image_routes.serve_image', filename=image) }}" alt="Latest Image" />
     </div>
     {% if prompt %}
     <div class="prompt">{{ prompt }}</div>
