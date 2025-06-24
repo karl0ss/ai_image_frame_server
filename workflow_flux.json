@@ -198,7 +198,7 @@
   },
   "45": {
     "inputs": {
-      "text": "",
+      "text": "text, watermark, deformed Avoid flat colors, poor lighting, and artificial elements. No unrealistic elements, low resolution, or flat colors. Avoid generic objects, poor lighting, and inconsistent styles, blurry, low-quality, distorted faces, overexposed lighting, extra limbs, bad anatomy, low contrast",
       "speak_and_recognation": {
         "__value__": [
           false,
