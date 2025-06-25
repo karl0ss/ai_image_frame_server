@@ -13,7 +13,6 @@ def config_editor():
     config = configparser.ConfigParser()
     config.read(CONFIG_PATH)
 
-    # Load from config directly — no helper functions needed anymore
     topics = config.get('comfyui', 'topics', fallback='').split(',')
     general_models = config.get('comfyui', 'models', fallback='').split(',')
     flux_models = config.get('comfyui:flux', 'models', fallback='').split(',')
@@ -64,7 +63,12 @@ def config_editor():
                     continue
                 form_key = f"{section}:{key}"
                 if form_key in request.form:
-                    config[section][key] = request.form[form_key]
+                    new_value = request.form[form_key]
+                    # Prevent overwriting masked secrets unless actually changed
+                    if key in ('password_for_auth', 'api_key') and new_value == "********":
+                        continue  # Skip overwriting
+                    config[section][key] = new_value
+
 
         # Save everything at once
         with open(CONFIG_PATH, 'w') as configfile:
@@ -87,8 +91,8 @@ def config_editor():
 
     return render_template(
         'settings.html',
-        topics=topics,
-        models=general_models + flux_models,
+        topics=sorted(topics,key=str.lower),
+        models=sorted(general_models + flux_models,key=str.lower),
         config_sections=filtered_config.keys(),
         config_values=filtered_config
     )

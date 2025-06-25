@@ -15,31 +15,6 @@
       "title": "VAE Decode"
     }
   },
-  "32": {
-    "inputs": {
-      "upscale_model": [
-        "33",
-        0
-      ],
-      "image": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "ImageUpscaleWithModel",
-    "_meta": {
-      "title": "Upscale Image"
-    }
-  },
-  "33": {
-    "inputs": {
-      "model_name": "4x-UltraSharp.pth"
-    },
-    "class_type": "UpscaleModelLoader",
-    "_meta": {
-      "title": "Load Upscale Model"
-    }
-  },
   "40": {
     "inputs": {
       "int": 20
@@ -125,7 +100,7 @@
         ]
       },
       "images": [
-        "32",
+        "8",
         0
       ]
     },
@@ -136,7 +111,7 @@
   },
   "44": {
     "inputs": {
-      "text": "",
+      "text": "Yautja Predator wielding flamethrower in smoky, cyberpunk alleyway darkness",
       "speak_and_recognation": {
         "__value__": [
           false,
@@ -188,7 +163,7 @@
   },
   "48": {
     "inputs": {
-      "seed": 293172455045072,
+      "seed": 47371998700984,
       "increment": 1
     },
     "class_type": "Seed Generator (Image Saver)",
@@ -287,7 +262,7 @@
         0
       ],
       "model": [
-        "74",
+        "35",
         0
       ]
     },
@@ -311,7 +286,7 @@
   "67": {
     "inputs": {
       "model": [
-        "74",
+        "35",
         0
       ],
       "conditioning": [
@@ -329,8 +304,8 @@
       "clip_name1": "t5-v1_1-xxl-encoder-Q4_K_M.gguf",
       "clip_name2": "clip_l.safetensors",
       "type": "flux",
-      "device": "cuda:1",
-      "virtual_vram_gb": 4,
+      "device": "cuda:0",
+      "virtual_vram_gb": 0,
       "use_other_vram": false,
       "expert_mode_allocations": ""
     },
@@ -342,22 +317,22 @@
   "73": {
     "inputs": {
       "vae_name": "FLUX1/ae.safetensors",
-      "device": "cuda:1"
+      "device": "cuda:0"
     },
     "class_type": "VAELoaderMultiGPU",
     "_meta": {
       "title": "VAELoaderMultiGPU"
     }
   },
-  "74": {
+  "35": {
     "inputs": {
       "unet_name": "flux1-dev-Q4_0.gguf",
       "dequant_dtype": "default",
       "patch_dtype": "default",
       "patch_on_device": false,
-      "device": "cuda:0",
-      "virtual_vram_gb": 8,
-      "use_other_vram": true,
+      "device": "cuda:1",
+      "virtual_vram_gb": 0,
+      "use_other_vram": false,
       "expert_mode_allocations": ""
     },
     "class_type": "UnetLoaderGGUFAdvancedDisTorchMultiGPU",

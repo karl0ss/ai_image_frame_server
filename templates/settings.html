@@ -161,7 +161,17 @@
           <option value="False" {% if value.lower()=='false' %}selected{% endif %}>False</option>
         </select>
         {% else %}
+        {% if key in ['password_for_auth', 'api_key'] %}
+        <input type="text" name="{{ section }}:{{ key }}" value="********" placeholder="********">
+        {% elif value.lower() in ['true', 'false'] %}
+        <select name="{{ section }}:{{ key }}">
+          <option value="True" {% if value.lower()=='true' %}selected{% endif %}>True</option>
+          <option value="False" {% if value.lower()=='false' %}selected{% endif %}>False</option>
+        </select>
+        {% else %}
         <input type="text" name="{{ section }}:{{ key }}" value="{{ value }}">
+        {% endif %}
+
         {% endif %}
 
         {% endfor %}
