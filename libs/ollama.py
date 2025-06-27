@@ -3,6 +3,7 @@ import logging
 import litellm
 import nest_asyncio
 from libs.generic import load_recent_prompts, load_config
+import re
 nest_asyncio.apply()
 
 logging.basicConfig(level=logging.INFO)
@@ -74,5 +75,10 @@ def create_prompt_on_openwebui(prompt: str, topic: str = "random") -> str:
     #     api_key=user_config["openwebui"]["api_key"],
     # )
     # prompt = response["choices"][0]["message"]["content"].strip('"')
+    match = re.search(r'"([^"]+)"', prompt)
+    if not match:
+        match = re.search(r":\s*\n*\s*(.+)", prompt) 
+    if match:
+        prompt = match.group(1)
     logging.debug(prompt)
-    return prompt.split(": ")[-1]
+    return prompt
