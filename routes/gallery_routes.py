@@ -31,28 +31,20 @@ def gallery():
 def get_favourites_route():
     return jsonify(get_favourites())
 
-@bp.route("/favourites/add", methods=["POST"])
-def add_favourite():
-    data = request.get_json()
-    filename = data.get("filename")
-    if not filename:
-        return jsonify({"status": "error", "message": "Filename missing"}), 400
-    
-    favourites = get_favourites()
-    if filename not in favourites:
-        favourites.append(filename)
-        save_favourites(favourites)
-    return jsonify({"status": "success"})
-
-@bp.route("/favourites/remove", methods=["POST"])
-def remove_favourite():
+@bp.route("/favourites/toggle", methods=["POST"])
+def toggle_favourite():
     data = request.get_json()
     filename = data.get("filename")
     if not filename:
         return jsonify({"status": "error", "message": "Filename missing"}), 400
         
     favourites = get_favourites()
+    is_favourited = False
     if filename in favourites:
         favourites.remove(filename)
-        save_favourites(favourites)
-    return jsonify({"status": "success"})
+    else:
+        favourites.append(filename)
+        is_favourited = True
+        
+    save_favourites(favourites)
+    return jsonify({"status": "success", "favourited": is_favourited})

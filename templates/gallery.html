@@ -204,7 +204,7 @@
     <div class="gallery" id="gallery"></div>
 
     <!-- Lightbox -->
-    <div class="lightbox" id="lightbox">
+    <div class="lightbox" id="lightbox" tabindex="-1" onkeyup="handleLightboxKeys(event)">
         <span class="close" onclick="closeLightbox()">&times;</span>
         <span class="favourite-heart" id="favourite-heart" onclick="toggleFavourite()">&#9825;</span>
         <span class="arrow left" onclick="prevImage()">&#10094;</span>
@@ -297,7 +297,9 @@
             const images = getGalleryImages();
             currentIndex = images.indexOf(imgEl);
             showImageAndLoadDetails(currentIndex);
-            document.getElementById("lightbox").style.display = "flex";
+            const lightbox = document.getElementById("lightbox");
+            lightbox.style.display = "flex";
+            lightbox.focus();
         }
 
         function updateFavouriteHeart(isFavourited) {
@@ -310,10 +312,8 @@
             const images = getGalleryImages();
             const imgEl = images[currentIndex];
             const filename = imgEl.dataset.filename;
-            let isFavourited = imgEl.dataset.favourited === 'true';
 
-            const url = isFavourited ? '/favourites/remove' : '/favourites/add';
-            fetch(url, {
+            fetch('/favourites/toggle', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename: filename })
@@ -321,17 +321,22 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    isFavourited = !isFavourited;
+                    const isFavourited = data.favourited;
                     imgEl.dataset.favourited = isFavourited;
                     updateFavouriteHeart(isFavourited);
-                    // Update the main image list
+                    
                     const originalImage = allImages.find(img => img.filename === filename);
                     if (originalImage) {
                         originalImage.favourited = isFavourited;
-                   }
-               }
-           });
-       }
+                    }
+                    
+                    if (showingFavourites) {
+                        filteredImages = allImages.filter(img => img.favourited);
+                        renderGallery();
+                    }
+                }
+            });
+        }
 
         function showImageAndLoadDetails(index) {
             const images = getGalleryImages();
@@ -402,6 +407,18 @@
                 if (originalImage && !originalImage.favourited) {
                     renderGallery();
                 }
+            }
+        }
+
+        function handleLightboxKeys(e) {
+            if (e.key === 'f') {
+                toggleFavourite();
+            } else if (e.key === 'Escape') {
+                closeLightbox();
+            } else if (e.key === 'ArrowLeft') {
+                prevImage();
+            } else if (e.key === 'ArrowRight') {
+                nextImage();
             }
         }
     </script>
