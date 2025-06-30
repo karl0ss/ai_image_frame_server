@@ -198,7 +198,7 @@
     <a href="/" class="button-link home-button">Home</a>
     <button class="button-link favourites-button" id="favourites-button" onclick="toggleFavouritesView()">Show Favourites</button>
 
-    <h1>Image Archive</h1>
+    <h1 id="page-title">Image Archive</h1>
 
     <!-- Empty gallery container; images will be loaded incrementally -->
     <div class="gallery" id="gallery"></div>
@@ -215,11 +215,11 @@
 
     <!-- Pass image filenames from Flask to JS -->
     <script>
-        let allImages = [
+        let allImages = JSON.parse(`[
             {% for image in images %}
-                { filename: "{{ image.filename }}", favourited: {{ 'true' if image.favourited else 'false' }} },
+                { "filename": "{{ image.filename }}", "favourited": {{ 'true' if image.favourited else 'false' }} }{% if not loop.last %},{% endif %}
             {% endfor %}
-        ];
+        ]`);
     </script>
 
     <script>
@@ -263,12 +263,15 @@
         function toggleFavouritesView() {
             showingFavourites = !showingFavourites;
             const button = document.getElementById('favourites-button');
+            const pageTitle = document.getElementById('page-title');
             if (showingFavourites) {
                 filteredImages = allImages.filter(img => img.favourited);
                 button.textContent = 'Show All';
+                pageTitle.textContent = 'Favourites';
             } else {
                 filteredImages = allImages;
                 button.textContent = 'Show Favourites';
+                pageTitle.textContent = 'Image Archive';
             }
             renderGallery();
         }
