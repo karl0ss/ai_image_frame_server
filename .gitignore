@@ -10,3 +10,4 @@ prompts_log.jsonl
 publish.sh
 test.py
 .vscode/launch.json
+favourites.json

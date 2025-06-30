@@ -116,6 +116,22 @@
             /* lower than lightbox (999) */
         }
 
+        .favourites-button {
+            position: fixed;
+            top: 20px;
+            right: 120px;
+            z-index: 500;
+        }
+
+        .favourite-heart {
+            position: absolute;
+            top: 20px;
+            left: 30px;
+            font-size: 30px;
+            color: white;
+            cursor: pointer;
+        }
+
         .button-link {
             background: #333;
             color: white;
@@ -127,6 +143,7 @@
             transition: background 0.3s;
             display: inline-block;
             text-align: center;
+            border: none;
         }
 
         .button-link:hover {
@@ -179,6 +196,7 @@
 
 <body>
     <a href="/" class="button-link home-button">Home</a>
+    <button class="button-link favourites-button" id="favourites-button" onclick="toggleFavouritesView()">Show Favourites</button>
 
     <h1>Image Archive</h1>
 
@@ -188,6 +206,7 @@
     <!-- Lightbox -->
     <div class="lightbox" id="lightbox">
         <span class="close" onclick="closeLightbox()">&times;</span>
+        <span class="favourite-heart" id="favourite-heart" onclick="toggleFavourite()">&#9825;</span>
         <span class="arrow left" onclick="prevImage()">&#10094;</span>
         <img id="lightbox-img" src="" />
         <p id="lightbox-prompt"></p>
@@ -196,10 +215,10 @@
 
     <!-- Pass image filenames from Flask to JS -->
     <script>
-        const allImages = [
+        let allImages = [
             {% for image in images %}
-        { filename: "{{ image.filename }}" },
-        {% endfor %}
+                { filename: "{{ image.filename }}", favourited: {{ 'true' if image.favourited else 'false' }} },
+            {% endfor %}
         ];
     </script>
 
@@ -209,12 +228,15 @@
         let loadedCount = 0;
         let currentIndex = 0;
         const detailsCache = {}; // Cache for image details
+        let showingFavourites = false;
+        let filteredImages = allImages;
 
         function createImageElement(image) {
             const img = document.createElement('img');
             img.src = `/images/thumbnails/${image.filename}`;
             img.dataset.fullsrc = `/images/${image.filename}`;
             img.dataset.filename = image.filename;
+            img.dataset.favourited = image.favourited;
             img.loading = 'lazy';
             img.style.cursor = 'pointer';
             img.style.borderRadius = '10px';
@@ -223,7 +245,8 @@
         }
 
         function loadNextBatch() {
-            const nextImages = allImages.slice(loadedCount, loadedCount + batchSize);
+            const imagesToLoad = showingFavourites ? filteredImages : allImages;
+            const nextImages = imagesToLoad.slice(loadedCount, loadedCount + batchSize);
             nextImages.forEach(image => {
                 const imgEl = createImageElement(image);
                 gallery.appendChild(imgEl);
@@ -231,12 +254,32 @@
             loadedCount += nextImages.length;
         }
 
+        function renderGallery() {
+            gallery.innerHTML = '';
+            loadedCount = 0;
+            loadNextBatch();
+        }
+
+        function toggleFavouritesView() {
+            showingFavourites = !showingFavourites;
+            const button = document.getElementById('favourites-button');
+            if (showingFavourites) {
+                filteredImages = allImages.filter(img => img.favourited);
+                button.textContent = 'Show All';
+            } else {
+                filteredImages = allImages;
+                button.textContent = 'Show Favourites';
+            }
+            renderGallery();
+        }
+
         // Load initial batch
-        loadNextBatch();
+        renderGallery();
 
         // Load more images when scrolling near bottom
         window.addEventListener('scroll', () => {
-            if (loadedCount >= allImages.length) return; // all loaded
+            const imagesToLoad = showingFavourites ? filteredImages : allImages;
+            if (loadedCount >= imagesToLoad.length) return; // all loaded
             if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 100)) {
                 loadNextBatch();
             }
@@ -254,13 +297,48 @@
             document.getElementById("lightbox").style.display = "flex";
         }
 
+        function updateFavouriteHeart(isFavourited) {
+            const heart = document.getElementById('favourite-heart');
+            heart.innerHTML = isFavourited ? '&#9829;' : '&#9825;'; // solid vs outline heart
+            heart.style.color = isFavourited ? 'red' : 'white';
+        }
+
+        function toggleFavourite() {
+            const images = getGalleryImages();
+            const imgEl = images[currentIndex];
+            const filename = imgEl.dataset.filename;
+            let isFavourited = imgEl.dataset.favourited === 'true';
+
+            const url = isFavourited ? '/favourites/remove' : '/favourites/add';
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: filename })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    isFavourited = !isFavourited;
+                    imgEl.dataset.favourited = isFavourited;
+                    updateFavouriteHeart(isFavourited);
+                    // Update the main image list
+                    const originalImage = allImages.find(img => img.filename === filename);
+                    if (originalImage) {
+                        originalImage.favourited = isFavourited;
+                   }
+               }
+           });
+       }
+
         function showImageAndLoadDetails(index) {
             const images = getGalleryImages();
             const imgEl = images[index];
             const filename = imgEl.dataset.filename;
             const fullsrc = imgEl.dataset.fullsrc;
+            const isFavourited = imgEl.dataset.favourited === 'true';
 
             document.getElementById("lightbox-img").src = fullsrc;
+            updateFavouriteHeart(isFavourited);
 
             if (detailsCache[filename]) {
                 document.getElementById("lightbox-prompt").textContent =
@@ -287,12 +365,16 @@
 
         function nextImage() {
             const images = getGalleryImages();
-            if (currentIndex + 1 >= images.length && loadedCount < allImages.length) {
+            const imagesToLoad = showingFavourites ? filteredImages : allImages;
+            if (currentIndex + 1 >= images.length && loadedCount < imagesToLoad.length) {
                 loadNextBatch();
                 // Wait briefly to ensure DOM updates
                 setTimeout(() => {
-                    currentIndex++;
-                    showImageAndLoadDetails(currentIndex);
+                    const updatedImages = getGalleryImages();
+                    if (currentIndex + 1 < updatedImages.length) {
+                        currentIndex++;
+                        showImageAndLoadDetails(currentIndex);
+                    }
                 }, 100);
             } else {
                 currentIndex = (currentIndex + 1) % images.length;
@@ -309,6 +391,15 @@
 
         function closeLightbox() {
             document.getElementById("lightbox").style.display = "none";
+            if (showingFavourites) {
+                // Refresh the gallery if a favourite was removed
+                const currentImage = getGalleryImages()[currentIndex];
+                const wasFavourited = currentImage.dataset.favourited === 'true';
+                const originalImage = allImages.find(img => img.filename === currentImage.dataset.filename);
+                if (originalImage && !originalImage.favourited) {
+                    renderGallery();
+                }
+            }
         }
     </script>
 </body>
