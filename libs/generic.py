@@ -48,20 +48,40 @@ def load_config() -> configparser.ConfigParser:
         sys.exit(1)
 
 
-def rename_image() -> str | None:
-    """Renames 'image.png' in the output folder to a timestamped filename if it exists."""
-    old_path = os.path.join(user_config["comfyui"]["output_dir"], "image.png")
+def rename_image(new_filename: str) -> str | None:
+    """Renames the latest image in the output folder to a timestamped filename."""
+    output_dir = user_config["comfyui"]["output_dir"]
+    image_png_path = os.path.join(output_dir, "image.png")
+    
+    # Check if image.png exists and is a favourite
+    if os.path.exists(image_png_path):
+        favourites = get_favourites()
+        if "image.png" in favourites:
+            # It's a favourite, so rename it to preserve it
+            timestamped_filename = f"{datetime.now().strftime('%Y%m%d-%H%M%S')}.png"
+            timestamped_path = os.path.join(output_dir, timestamped_filename)
+            os.rename(image_png_path, timestamped_path)
+            
+            # Update favourites list
+            favourites.remove("image.png")
+            favourites.append(timestamped_filename)
+            save_favourites(favourites)
+            print(f"Preserved favourite 'image.png' as '{timestamped_filename}'")
 
-    if os.path.exists(old_path):
-        new_filename = f"{str(time.time())}.png"
-        new_path = os.path.join(user_config["comfyui"]["output_dir"], new_filename)
-        os.rename(old_path, new_path)
-        generate_thumbnail(new_path)
-        print(f"Renamed 'image.png' to '{new_filename}'")
-        return new_filename
-    else:
-        print("No image.png found.")
+    # Find the latest generated image (which is the new_filename)
+    latest_image_path = os.path.join(output_dir, new_filename)
+    if not os.path.exists(latest_image_path):
+        print(f"Error: Newly generated image '{new_filename}' not found.")
         return None
+
+    # Rename the latest image to "image.png"
+    if os.path.exists(image_png_path):
+        os.remove(image_png_path) # remove if it wasn't a favourite
+        
+    os.rename(latest_image_path, image_png_path)
+    generate_thumbnail(image_png_path)
+    print(f"Renamed '{new_filename}' to 'image.png'")
+    return "image.png"
 
 
 def get_details_from_png(path):
@@ -111,6 +131,19 @@ def load_topics_from_config():
     topics = load_config()["comfyui"]["topics"].split(",")
     sorted_topics = sorted(topics, key=str.lower)
     return sorted_topics
+
+
+favourites_file = "./favourites.json"
+
+def get_favourites():
+    if not os.path.exists(favourites_file):
+        return []
+    with open(favourites_file, 'r') as f:
+        return json.load(f)
+
+def save_favourites(favourites):
+    with open(favourites_file, 'w') as f:
+        json.dump(favourites, f)
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]

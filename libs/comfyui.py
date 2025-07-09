@@ -103,8 +103,7 @@ def generate_image(
         # Generate image
         logging.debug(f"Generating image: {file_name}")
         results = api.queue_and_wait_images(wf, save_node)
-        rename_image()
-
+        
         for _, image_data in results.items():
             output_path = os.path.join(
                 user_config["comfyui"]["output_dir"], f"{file_name}.png"
@@ -112,6 +111,7 @@ def generate_image(
             with open(output_path, "wb+") as f:
                 f.write(image_data)
             generate_thumbnail(output_path)
+        rename_image(f"{file_name}.png")
 
         logging.debug(f"Image generated successfully for UID: {file_name}")
 
@@ -143,7 +143,7 @@ def select_model(model: str) -> tuple[str, str]:
 
 def create_image(prompt: str | None = None, model: str = "Random") -> None:
     """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
-
+    from datetime import datetime
     if prompt is None:
         prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
 
@@ -153,10 +153,14 @@ def create_image(prompt: str | None = None, model: str = "Random") -> None:
 
     save_prompt(prompt)
     selected_workflow, model = select_model(model)
+    
+    # Generate a unique filename using a timestamp
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    file_name = f"{timestamp}_{random.getrandbits(32)}"
 
     if selected_workflow == "FLUX":
         generate_image(
-            file_name="image",
+            file_name=file_name,
             comfy_prompt=prompt,
             workflow_path="./workflow_flux.json",
             prompt_node="Positive Prompt T5",
@@ -169,6 +173,6 @@ def create_image(prompt: str | None = None, model: str = "Random") -> None:
             model=model
         )
     else:  # SDXL
-        generate_image("image", comfy_prompt=prompt, model=model)
+        generate_image(file_name, comfy_prompt=prompt, model=model)
 
     logging.info(f"{selected_workflow} generation started with prompt: {prompt}")
