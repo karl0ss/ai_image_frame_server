@@ -51,10 +51,22 @@ def load_config() -> configparser.ConfigParser:
 def rename_image() -> str | None:
     """Renames 'image.png' in the output folder to a timestamped filename if it exists."""
     old_path = os.path.join(user_config["comfyui"]["output_dir"], "image.png")
+    favourites_file = "./favourites.json"
 
     if os.path.exists(old_path):
         new_filename = f"{str(time.time())}.png"
         new_path = os.path.join(user_config["comfyui"]["output_dir"], new_filename)
+
+        # Check if image.png is a favourite
+        if os.path.exists(favourites_file):
+            with open(favourites_file, 'r') as f:
+                favourites = json.load(f)
+            if "image.png" in favourites:
+                favourites.remove("image.png")
+                favourites.append(new_filename)
+                with open(favourites_file, 'w') as f:
+                    json.dump(favourites, f)
+
         os.rename(old_path, new_path)
         generate_thumbnail(new_path)
         print(f"Renamed 'image.png' to '{new_filename}'")
