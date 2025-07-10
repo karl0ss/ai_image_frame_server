@@ -1,9 +1,14 @@
 [tool.bumpversion]
-current_version = "0.2.12"
+current_version = "0.2.13"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 replace = "{new_version}"
 regex = false
+tag = true
+commit = true
+message = "Bump version: {current_version} → {new_version}"
+tag_name = "{new_version}"
+tag_message = "Bump version: {current_version} → {new_version}"
 
 [[tool.bumpversion.files]]
 filename = ".bumpversion.toml"
@@ -14,15 +19,6 @@ replace = 'current_version = "{new_version}"'
 filename = "Dockerfile"
 search = 'ARG VERSION="{current_version}"'
 replace = 'ARG VERSION="{new_version}"'
-ignore_missing_version = false
-ignore_missing_files = false
-tag = true
-sign_tags = false
-tag_name = "{new_version}"
-tag_message = "Bump version: {current_version} → {new_version}"
-allow_dirty = false
-commit = true
-message = "Bump version: {current_version} → {new_version}"
 moveable_tags = []
 commit_args = ""
 setup_hooks = []
