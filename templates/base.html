@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}AI Image Frame{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% block content %}{% endblock %}
+
+    <!-- Version number at bottom right -->
+    <div class="version">
+        <a href="{{ url_for('settings_route.config_editor') }}">v{{ version }}</a>
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,219 +1,199 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Create An Image</title>
-    <style>
-        /* ---------- reset ---------- */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+{% block title %}Create An Image{% endblock %}
+
+{% block head %}
+<style>
+    body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        padding: 20px;
+    }
+
+    textarea {
+        width: 80vw;
+        height: 200px;
+        border-radius: 10px;
+        padding: 15px;
+        font-size: 16px;
+        font-family: monospace;
+        resize: none;
+        margin-bottom: 20px;
+        background: #111;
+        color: #eee;
+        border: 1px solid #333;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+
+    button,
+    select {
+        background: #333;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+
+    button:hover,
+    select:hover {
+        background: #555;
+    }
+
+    #spinner-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+        visibility: hidden;
+        z-index: 1000;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 6px solid #555;
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
         }
+    }
 
-        /* ---------- layout ---------- */
+    @media (max-width: 600px) {
         body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: black;
-            color: white;
-            font-family: Arial, sans-serif;
-            padding: 20px;
-        }
-
-        textarea {
-            width: 80vw;
-            height: 200px;
-            border-radius: 10px;
-            padding: 15px;
-            font-size: 16px;
-            font-family: monospace;
-            resize: none;
-            margin-bottom: 20px;
-            background: #111;
-            color: #eee;
-            border: 1px solid #333;
+            min-height: 100dvh;
+            height: auto;
+            justify-content: flex-start;
+            padding-top: 40px;
         }
 
         .button-group {
-            display: flex;
-            gap: 20px;
-            align-items: center;
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
         }
 
         button,
         select {
-            background: #333;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
+            width: 100%;
         }
 
-        button:hover,
-        select:hover {
-            background: #555;
+        textarea {
+            height: 150px;
         }
+    }
+</style>
+{% endblock %}
 
-        /* ---------- spinner ---------- */
-        #spinner-overlay {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.6);
-            visibility: hidden;
-            z-index: 1000;
-        }
+{% block content %}
+<h1 style="margin-bottom: 20px;">Create An Image</h1>
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 6px solid #555;
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
+<textarea id="prompt-box" placeholder="Enter your custom prompt here..."></textarea>
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
+<div class="button-group">
+    <button onclick="showSpinner(); location.href='/'">Back</button>
 
-        @media (max-width: 600px) {
-            body {
-                min-height: 100dvh;
-                height: auto;
-                justify-content: flex-start;
-                padding-top: 40px;
-            }
+    <button onclick="sendPrompt()">Send Prompt</button>
 
-            .button-group {
-                flex-direction: column;
-                align-items: stretch;
-                width: 100%;
-            }
+    <button onclick="randomPrompt()">Random Prompt</button>
 
-            button,
-            select {
-                width: 100%;
-            }
+    <select id="model-select">
+        <option value="" selected>Random</option>
+        <optgroup label="FLUX">
+            {% for m in models if 'flux' in m|lower %}
+            <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
+            {% endfor %}
+        </optgroup>
+        <optgroup label="SDXL">
+            {% for m in models if 'flux' not in m|lower %}
+            <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
+            {% endfor %}
+        </optgroup>
+    </select>
 
-            textarea {
-                height: 150px;
-            }
-        }
-    </style>
-</head>
+    <select id="topic-select">
+        <option value="">No Topic</option>
+        <option value="random">Random</option>
+        <optgroup label="Topics">
+            {% for t in topics %}
+            <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+        </optgroup>
+    </select>
+</div>
 
-<body>
-    <h1 style="margin-bottom: 20px;">Create An Image</h1>
+<div id="spinner-overlay">
+    <div class="spinner"></div>
+</div>
+{% endblock %}
 
-    <textarea id="prompt-box" placeholder="Enter your custom prompt here..."></textarea>
+{% block scripts %}
+<script>
+    const overlay = document.getElementById('spinner-overlay');
 
-    <div class="button-group">
-        <button onclick="showSpinner(); location.href='/'">Back</button>
+    function showSpinner() { overlay.style.visibility = 'visible'; }
 
-        <button onclick="sendPrompt()">Send Prompt</button>
+    function sendPrompt() {
+        showSpinner();
+        const prompt = document.getElementById('prompt-box').value;
+        const model = document.getElementById('model-select').value;
 
-        <button onclick="randomPrompt()">Random Prompt</button>
+        const formData = new URLSearchParams();
+        formData.append('prompt', prompt);
+        formData.append('model', model);
 
-        <select id="model-select">
-            <option value="" selected>Random</option>
-            <!-- Group: FLUX -->
-            <optgroup label="FLUX">
-                {% for m in models if 'flux' in m|lower %}
-                <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
-                {% endfor %}
-            </optgroup>
-            <!-- Group: SDXL -->
-            <optgroup label="SDXL">
-                {% for m in models if 'flux' not in m|lower %}
-                <option value="{{ m }}">{{ m.rsplit('.', 1)[0] }}</option>
-                {% endfor %}
-            </optgroup>
-        </select>
-
-        <select id="topic-select">
-            <option value="">No Topic</option>
-            <option value="random">Random</option>
-            <optgroup label="Topics">
-                {% for t in topics %}
-                <option value="{{ t }}">{{ t }}</option>
-                {% endfor %}
-            </optgroup>
-        </select>
-        
-
-    </div>
-
-    <!-- waiting overlay -->
-    <div id="spinner-overlay">
-        <div class="spinner"></div>
-    </div>
-
-    <script>
-        const overlay = document.getElementById('spinner-overlay');
-
-        function showSpinner() { overlay.style.visibility = 'visible'; }
-
-        function sendPrompt() {
-            showSpinner();
-            const prompt = document.getElementById('prompt-box').value;
-            const model = document.getElementById('model-select').value;
-
-            const formData = new URLSearchParams();
-            formData.append('prompt', prompt);
-            formData.append('model', model);
-
-            fetch('/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData.toString()
+        fetch('/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+        })
+            .then(response => {
+                window.location.href = response.redirected ? response.url : '/create';
             })
-                .then(response => {
-                    window.location.href = response.redirected ? response.url : '/create';
-                })
-                .catch(error => {
-                    overlay.style.visibility = 'hidden';
-                    alert("Error sending prompt: " + error);
-                });
-        }
+            .catch(error => {
+                overlay.style.visibility = 'hidden';
+                alert("Error sending prompt: " + error);
+            });
+    }
 
-        // wrapper for Random Prompt button so it also sends the model
-        function randomPrompt() {
-            showSpinner();
-            const model = document.getElementById('model-select').value;
-            const topic = document.getElementById('topic-select').value; // this line was missing
+    function randomPrompt() {
+        showSpinner();
+        const model = document.getElementById('model-select').value;
+        const topic = document.getElementById('topic-select').value;
 
-            const formData = new URLSearchParams();
-            formData.append('model', model);
-            formData.append('topic', topic); // include topic in request
+        const formData = new URLSearchParams();
+        formData.append('model', model);
+        formData.append('topic', topic);
 
-            fetch('/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData.toString()
+        fetch('/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+        })
+            .then(response => {
+                window.location.href = response.redirected ? response.url : '/create';
             })
-                .then(response => {
-                    window.location.href = response.redirected ? response.url : '/create';
-                })
-                .catch(error => {
-                    overlay.style.visibility = 'hidden';
-                    alert("Error requesting random prompt: " + error);
-                });
-        }
-    </script>
-</body>
-
-</html>
+            .catch(error => {
+                overlay.style.visibility = 'hidden';
+                alert("Error requesting random prompt: " + error);
+            });
+    }
+</script>
+{% endblock %}

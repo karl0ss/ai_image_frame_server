@@ -1,21 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Config Editor</title>
+{% block title %}Config Editor{% endblock %}
+
+{% block head %}
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     body {
-      background: black;
-      color: white;
-      font-family: Arial, sans-serif;
       min-height: 100vh;
       padding: 40px 20px;
       display: flex;
@@ -74,21 +63,11 @@
       margin-top: 20px;
     }
 
-    .button-link {
-      background: #333;
-      height: 40px;
-      color: white;
-      text-decoration: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 16px;
-      transition: background 0.3s;
-      display: inline-block;
-      text-align: center;
-    }
-
-    .button-link:hover {
-      background: #555;
+    .back-button-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
     }
 
     @media (max-width: 768px) {
@@ -102,18 +81,10 @@
         margin-bottom: 30px;
       }
     }
-
-    .back-button-wrapper {
-      width: 100%;
-      display: flex;
-      justify-content: center;
-      margin-top: 20px;
-    }
   </style>
-</head>
+{% endblock %}
 
-<body>
-
+{% block content %}
   <div class="box">
     <h2>Topics</h2>
     <form method="post">
@@ -186,7 +157,4 @@
   <div class="back-button-wrapper">
     <a href="/" class="button-link">Back to Home</a>
   </div>
-
-</body>
-
-</html>
+{% endblock %}

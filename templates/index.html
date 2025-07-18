@@ -1,31 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Image of the Day</title>
+{% block title %}AI Image of the Day{% endblock %}
+
+{% block head %}
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            background: black;
-            color: white;
-            font-family: Arial, sans-serif;
             position: relative;
             padding-top: 20px;
             padding-bottom: 20px;
         }
-
 
         .image-container {
             max-width: 90vw;
@@ -54,9 +42,7 @@
             max-width: 80vw;
             text-align: left;
             max-height: 30vh;
-            /* NEW: limit height */
             overflow-y: auto;
-            /* NEW: allow scrolling */
         }
 
         .button-group {
@@ -65,46 +51,6 @@
             margin-top: 15px;
             justify-content: center;
         }
-
-        .button-link {
-            background: #333;
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-            display: inline-block;
-            text-align: center;
-        }
-
-        .button-link:hover {
-            background: #555;
-        }
-
-        /* New style for version number */
-        .version {
-            position: fixed;
-            bottom: 8px;
-            right: 12px;
-            color: #666;
-            font-size: 12px;
-            font-family: monospace;
-            user-select: none;
-            opacity: 0.6;
-        }
-
-        .version a {
-            color: inherit;
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        .version a:hover {
-            text-decoration: underline;
-        }
-
 
         @media (max-width: 768px) {
             .image-container {
@@ -134,14 +80,9 @@
             }
         }
     </style>
-    <script>
-        setInterval(() => {
-            location.reload();
-        }, {{ reload_interval }});  // Refresh every X ms
-    </script>
-</head>
+{% endblock %}
 
-<body>
+{% block content %}
     {% if image %}
     <div class="image-container">
         <img src="{{ url_for('image_routes.serve_image', filename=image) }}" alt="Latest Image" />
@@ -156,11 +97,12 @@
     {% else %}
     <p>No images found</p>
     {% endif %}
+{% endblock %}
 
-    <!-- Version number at bottom right -->
-    <div class="version">
-        <a href="{{ url_for('settings_route.config_editor') }}">v{{ version }}</a>
-    </div>
-</body>
-
-</html>
+{% block scripts %}
+    <script>
+        setInterval(() => {
+            location.reload();
+        }, {{ reload_interval }});  // Refresh every X ms
+    </script>
+{% endblock %}

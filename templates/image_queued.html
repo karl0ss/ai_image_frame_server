@@ -1,25 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Created</title>
+{% extends "base.html" %}
+
+{% block title %}Image Created{% endblock %}
+
+{% block head %}
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 100vh;
-            background: black;
-            color: white;
-            font-family: Arial, sans-serif;
-            padding: 20px;
             text-align: center;
         }
         .message {
@@ -50,13 +40,13 @@
             background: #555;
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <div class="message">Image will be made with <i>{{ model }}</i> using prompt:</div>
     <div class="prompt-text">
         {{ prompt }}
     </div>
     <button onclick="location.href='/'">Home</button>
-</body>
-</html>
+{% endblock %}
 

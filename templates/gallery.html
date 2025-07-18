@@ -1,24 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Image Archive</title>
+{% block title %}Image Archive{% endblock %}
+
+{% block head %}
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background-color: black;
-            color: white;
-            font-family: sans-serif;
-            padding: 2rem;
-        }
-
         h1 {
             text-align: center;
             margin-bottom: 2rem;
@@ -102,18 +87,14 @@
             text-align: left;
             margin-top: 20px;
             max-height: 25vh;
-            /* NEW: restrict height */
             overflow-y: auto;
-            /* NEW: allow vertical scroll */
         }
 
-        /* Back button fixed top right */
         .home-button {
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 500;
-            /* lower than lightbox (999) */
         }
 
         .favourites-button {
@@ -130,24 +111,6 @@
             font-size: 30px;
             color: white;
             cursor: pointer;
-        }
-
-        .button-link {
-            background: #333;
-            color: white;
-            text-decoration: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
-            display: inline-block;
-            text-align: center;
-            border: none;
-        }
-
-        .button-link:hover {
-            background: #555;
         }
 
         @media (max-width: 600px) {
@@ -181,9 +144,7 @@
                 max-width: 90%;
                 padding: 8px 16px;
                 max-height: 20vh;
-                /* smaller height for mobile */
                 overflow-y: auto;
-                /* keep scroll on mobile too */
             }
 
             .button-link {
@@ -192,18 +153,16 @@
             }
         }
     </style>
-</head>
+{% endblock %}
 
-<body>
+{% block content %}
     <a href="/" class="button-link home-button">Home</a>
     <button class="button-link favourites-button" id="favourites-button" onclick="toggleFavouritesView()">Show Favourites</button>
 
     <h1 id="page-title">Image Archive</h1>
 
-    <!-- Empty gallery container; images will be loaded incrementally -->
     <div class="gallery" id="gallery"></div>
 
-    <!-- Lightbox -->
     <div class="lightbox" id="lightbox" tabindex="-1" onkeyup="handleLightboxKeys(event)">
         <span class="close" onclick="closeLightbox()">&times;</span>
         <span class="favourite-heart" id="favourite-heart" onclick="toggleFavourite()">&#9825;</span>
@@ -212,8 +171,9 @@
         <p id="lightbox-prompt"></p>
         <span class="arrow right" onclick="nextImage()">&#10095;</span>
     </div>
+{% endblock %}
 
-    <!-- Pass image filenames from Flask to JS -->
+{% block scripts %}
     <script>
         let allImages = JSON.parse(`[
             {% for image in images %}
@@ -224,10 +184,10 @@
 
     <script>
         const gallery = document.getElementById('gallery');
-        const batchSize = 9; // images to load per batch
+        const batchSize = 9;
         let loadedCount = 0;
         let currentIndex = 0;
-        const detailsCache = {}; // Cache for image details
+        const detailsCache = {};
         let showingFavourites = false;
         let filteredImages = allImages;
 
@@ -276,19 +236,16 @@
             renderGallery();
         }
 
-        // Load initial batch
         renderGallery();
 
-        // Load more images when scrolling near bottom
         window.addEventListener('scroll', () => {
             const imagesToLoad = showingFavourites ? filteredImages : allImages;
-            if (loadedCount >= imagesToLoad.length) return; // all loaded
+            if (loadedCount >= imagesToLoad.length) return;
             if ((window.innerHeight + window.scrollY) >= (document.body.offsetHeight - 100)) {
                 loadNextBatch();
             }
         });
 
-        // Get current images in gallery for lightbox navigation
         function getGalleryImages() {
             return Array.from(gallery.querySelectorAll('img'));
         }
@@ -304,7 +261,7 @@
 
         function updateFavouriteHeart(isFavourited) {
             const heart = document.getElementById('favourite-heart');
-            heart.innerHTML = isFavourited ? '&#9829;' : '&#9825;'; // solid vs outline heart
+            heart.innerHTML = isFavourited ? '&#9829;' : '&#9825;';
             heart.style.color = isFavourited ? 'red' : 'white';
         }
 
@@ -361,7 +318,7 @@
                         return response.json();
                     })
                     .then(data => {
-                        detailsCache[filename] = data; // Cache the data
+                        detailsCache[filename] = data;
                         document.getElementById("lightbox-prompt").textContent =
                             `Model:${data.model} - Created:${data.date}\n\n${data.prompt}`;
                     })
@@ -376,7 +333,6 @@
             const imagesToLoad = showingFavourites ? filteredImages : allImages;
             if (currentIndex + 1 >= images.length && loadedCount < imagesToLoad.length) {
                 loadNextBatch();
-                // Wait briefly to ensure DOM updates
                 setTimeout(() => {
                     const updatedImages = getGalleryImages();
                     if (currentIndex + 1 < updatedImages.length) {
@@ -396,11 +352,9 @@
             showImageAndLoadDetails(currentIndex);
         }
 
-
         function closeLightbox() {
             document.getElementById("lightbox").style.display = "none";
             if (showingFavourites) {
-                // Refresh the gallery if a favourite was removed
                 const currentImage = getGalleryImages()[currentIndex];
                 const wasFavourited = currentImage.dataset.favourited === 'true';
                 const originalImage = allImages.find(img => img.filename === currentImage.dataset.filename);
@@ -422,6 +376,4 @@
             }
         }
     </script>
-</body>
-
-</html>
+{% endblock %}
