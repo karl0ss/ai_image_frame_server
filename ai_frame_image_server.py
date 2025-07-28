@@ -4,6 +4,7 @@ import os
 
 from routes import (
     auth_routes,
+    favourites_routes,
     gallery_routes,
     image_routes,
     index_routes,
@@ -24,6 +25,7 @@ auth_routes.init_app(user_config)
 # Register blueprints
 app.register_blueprint(index_routes.bp)
 app.register_blueprint(auth_routes.bp)
+app.register_blueprint(favourites_routes.bp)
 app.register_blueprint(gallery_routes.bp)
 app.register_blueprint(image_routes.bp)
 app.register_blueprint(job_routes.bp)
