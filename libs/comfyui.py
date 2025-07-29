@@ -145,7 +145,8 @@ def create_image(prompt: str | None = None, model: str = "Random") -> None:
     """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
 
     if prompt is None:
-        prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"])
+        logging.error("No prompt provided.")
+        return
 
     if not prompt:
         logging.error("No prompt generated.")
@@ -153,7 +154,7 @@ def create_image(prompt: str | None = None, model: str = "Random") -> None:
 
     save_prompt(prompt)
     selected_workflow, model = select_model(model)
-
+    
     if selected_workflow == "FLUX":
         generate_image(
             file_name="image",

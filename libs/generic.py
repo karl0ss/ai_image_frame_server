@@ -124,5 +124,51 @@ def load_topics_from_config():
     sorted_topics = sorted(topics, key=str.lower)
     return sorted_topics
 
+def load_openrouter_models_from_config():
+    config = load_config()
+    if config["openrouter"].get("enabled", "False").lower() == "true":
+        models = config["openrouter"]["models"].split(",")
+        return sorted([model.strip() for model in models if model.strip()], key=str.lower)
+    return []
+def load_prompt_models_from_config():
+    """Load and return a list of available prompt generation models (both OpenWebUI and OpenRouter)."""
+    config = load_config()
+    prompt_models = []
+    
+    # Add OpenWebUI models if configured
+    if "openwebui" in config and "models" in config["openwebui"]:
+        openwebui_models = config["openwebui"]["models"].split(",")
+        prompt_models.extend([("openwebui", model.strip()) for model in openwebui_models if model.strip()])
+    
+    # Add OpenRouter models if enabled and configured
+    if config["openrouter"].get("enabled", "False").lower() == "true" and "models" in config["openrouter"]:
+        openrouter_models = config["openrouter"]["models"].split(",")
+        prompt_models.extend([("openrouter", model.strip()) for model in openrouter_models if model.strip()])
+    
+    return prompt_models
+
+
+def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
+    """Create a prompt using a randomly selected model from OpenWebUI or OpenRouter."""
+    prompt_models = load_prompt_models_from_config()
+    
+    if not prompt_models:
+        logging.warning("No prompt generation models configured.")
+        return None
+    
+    # Randomly select a model
+    service, model = random.choice(prompt_models)
+    
+    if service == "openwebui":
+        # Import here to avoid circular imports
+        from libs.ollama import create_prompt_on_openwebui
+        return create_prompt_on_openwebui(base_prompt, topic)
+    elif service == "openrouter":
+        # Import here to avoid circular imports
+        from libs.openrouter import create_prompt_on_openrouter
+        return create_prompt_on_openrouter(base_prompt, topic)
+    
+    return None
+
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
