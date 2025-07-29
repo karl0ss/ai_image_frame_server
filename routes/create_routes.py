@@ -1,7 +1,7 @@
 from flask import Blueprint, request, render_template, redirect, url_for, session
 import threading
 from libs.comfyui import create_image, select_model, get_available_models
-from libs.ollama import create_prompt_on_openwebui
+from libs.openwebui import create_prompt_on_openwebui
 from libs.generic import load_models_from_config, load_topics_from_config, load_openrouter_models_from_config, load_openwebui_models_from_config, create_prompt_with_random_model
 import os
 
@@ -23,7 +23,7 @@ def create():
                 # Use the specified prompt model
                 service, service_model = prompt_model.split(":", 1) if ":" in prompt_model else (prompt_model, "")
                 if service == "openwebui":
-                    from libs.ollama import create_prompt_on_openwebui
+                    from libs.openwebui import create_prompt_on_openwebui
                     prompt = create_prompt_on_openwebui(user_config["comfyui"]["prompt"], topic, service_model)
                 elif service == "openrouter":
                     from libs.openrouter import create_prompt_on_openrouter

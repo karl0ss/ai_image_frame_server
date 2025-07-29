@@ -15,7 +15,7 @@ from tenacity import (
 import nest_asyncio
 from libs.generic import rename_image, load_config, save_prompt
 from libs.create_thumbnail import generate_thumbnail
-from libs.ollama import create_prompt_on_openwebui
+from libs.openwebui import create_prompt_on_openwebui
 nest_asyncio.apply()
 
 logging.basicConfig(level=logging.INFO)

@@ -170,7 +170,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
     
     if service == "openwebui":
         # Import here to avoid circular imports
-        from libs.ollama import create_prompt_on_openwebui
+        from libs.openwebui import create_prompt_on_openwebui
         return create_prompt_on_openwebui(base_prompt, topic)
     elif service == "openrouter":
         # Import here to avoid circular imports
