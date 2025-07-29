@@ -76,7 +76,7 @@ def create_prompt_on_openwebui(prompt: str, topic: str = "random", model: str = 
     result = client.chat(
         question=user_content,
         chat_title=datetime.now().strftime("%Y-%m-%d %H:%M"),
-        folder_name="Ai Image Requests" 
+        folder_name="ai-frame-image-server" 
     )
 
     if result:
