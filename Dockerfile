@@ -4,7 +4,7 @@ FROM python:3.11-slim
 # Set the working directory in the container
 WORKDIR /app
 # Set version label
-ARG VERSION="0.2.19"
+ARG VERSION="0.2.20"
 LABEL version=$VERSION
 
 # Copy project files into the container
