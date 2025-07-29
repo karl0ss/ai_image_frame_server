@@ -4,6 +4,7 @@ import logging
 import sys
 import time
 import os
+import random
 from PIL import Image
 import nest_asyncio
 import json
@@ -130,6 +131,14 @@ def load_openrouter_models_from_config():
         models = config["openrouter"]["models"].split(",")
         return sorted([model.strip() for model in models if model.strip()], key=str.lower)
     return []
+
+def load_openwebui_models_from_config():
+    config = load_config()
+    if "openwebui" in config and "models" in config["openwebui"]:
+        models = config["openwebui"]["models"].split(",")
+        return sorted([model.strip() for model in models if model.strip()], key=str.lower)
+    return []
+
 def load_prompt_models_from_config():
     """Load and return a list of available prompt generation models (both OpenWebUI and OpenRouter)."""
     config = load_config()

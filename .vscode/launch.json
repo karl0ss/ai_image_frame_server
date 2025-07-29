@@ -8,7 +8,7 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "ai_frame_image_server.py",
             "console": "integratedTerminal",
             "justMyCode": false,
             "env": {"SECRET_KEY":"dkdkdk"}

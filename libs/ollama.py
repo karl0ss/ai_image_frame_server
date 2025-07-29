@@ -13,7 +13,7 @@ LOG_FILE = "./prompts_log.jsonl"
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
 
-def create_prompt_on_openwebui(prompt: str, topic: str = "random") -> str:
+def create_prompt_on_openwebui(prompt: str, topic: str = "random", model: str = None) -> str:
     """Sends prompt to OpenWebui and returns the generated response."""
     topic_instruction = ""
     selected_topic = ""
@@ -40,7 +40,12 @@ def create_prompt_on_openwebui(prompt: str, topic: str = "random") -> str:
     )
 
 
-    model = random.choice(user_config["openwebui"]["models"].split(","))
+    if model:
+        # Use the specified model
+        model = model
+    else:
+        # Select a random model
+        model = random.choice(user_config["openwebui"]["models"].split(","))
     response = litellm.completion(
         api_base=user_config["openwebui"]["base_url"],
         model="openai/" + model,

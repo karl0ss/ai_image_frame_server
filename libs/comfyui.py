@@ -123,14 +123,14 @@ def select_model(model: str) -> tuple[str, str]:
     use_flux = json.loads(user_config["comfyui"].get("FLUX", "false").lower())
     only_flux = json.loads(user_config["comfyui"].get("ONLY_FLUX", "false").lower())
 
-    if model == "Random":
+    if model == "Random Image Model":
         selected_workflow = "FLUX" if (use_flux and (only_flux or random.choice([True, False]))) else "SDXL"
     elif "flux" in model.lower():
         selected_workflow = "FLUX"
     else:
         selected_workflow = "SDXL"
 
-    if model == "Random":
+    if model == "Random Image Model":
         if selected_workflow == "FLUX":
             valid_models = user_config["comfyui:flux"]["models"].split(",")
         else:  # SDXL
@@ -141,7 +141,7 @@ def select_model(model: str) -> tuple[str, str]:
     return selected_workflow, model
 
 
-def create_image(prompt: str | None = None, model: str = "Random") -> None:
+def create_image(prompt: str | None = None, model: str = "Random Image Model") -> None:
     """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
 
     if prompt is None:
