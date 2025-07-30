@@ -39,7 +39,16 @@ from libs.comfyui import create_image
 
 def scheduled_task():
     print(f"Executing scheduled task at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    create_image(None)
+    # Generate a random prompt using either OpenWebUI or OpenRouter
+    from libs.generic import create_prompt_with_random_model
+    prompt = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.")
+    if prompt:
+        # Select a random model
+        import random
+        model = "Random Image Model"
+        create_image(prompt, model)
+    else:
+        print("Failed to generate a prompt for the scheduled task.")
 
 if user_config["frame"]["auto_regen"] == "True":
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":

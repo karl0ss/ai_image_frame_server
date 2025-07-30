@@ -145,8 +145,12 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model") -
     """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
 
     if prompt is None:
-        logging.error("No prompt provided.")
-        return
+        # Generate a random prompt using either OpenWebUI or OpenRouter
+        from libs.generic import create_prompt_with_random_model
+        prompt = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.")
+        if not prompt:
+            logging.error("Failed to generate a prompt.")
+            return
 
     if not prompt:
         logging.error("No prompt generated.")
