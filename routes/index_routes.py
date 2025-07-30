@@ -11,12 +11,10 @@ def index():
     image_filename = "./image.png"
     image_path = os.path.join(image_folder, image_filename)
     prompt = get_details_from_png(image_path)["p"]
-    version = get_current_version()
 
     return render_template(
         "index.html",
         image=image_filename,
         prompt=prompt,
         reload_interval=user_config["frame"]["reload_interval"],
-        version=version,
     )

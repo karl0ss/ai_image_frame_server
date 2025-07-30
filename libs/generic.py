@@ -110,7 +110,7 @@ def get_current_version():
         return version
     except subprocess.CalledProcessError as e:
         print("Error running bump-my-version:", e)
-        return None
+        return "unknown"
 
 def load_models_from_config():
     flux_models = load_config()["comfyui:flux"]["models"].split(",")

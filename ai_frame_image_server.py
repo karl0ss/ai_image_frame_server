@@ -18,6 +18,13 @@ user_config = load_config()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY")
 
+# Make version available to all templates
+from libs.generic import get_current_version
+@app.context_processor
+def inject_version():
+    version = get_current_version()
+    return dict(version=version)
+
 # Inject config into routes that need it
 create_routes.init_app(user_config)
 auth_routes.init_app(user_config)

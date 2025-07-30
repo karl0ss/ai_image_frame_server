@@ -12,7 +12,7 @@
 
     <!-- Version number at bottom right -->
     <div class="version">
-        <a href="{{ url_for('settings_route.config_editor') }}">v{{ version }}</a>
+        <a href="{{ url_for('settings_route.config_editor') }}">{% if version and version != 'unknown' %}v{{ version }}{% else %}v?.?.?{% endif %}</a>
     </div>
 
     {% block scripts %}{% endblock %}
