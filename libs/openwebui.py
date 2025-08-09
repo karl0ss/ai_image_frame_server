@@ -73,17 +73,22 @@ def create_prompt_on_openwebui(prompt: str, topic: str = "random", model: str = 
     ]
 
     # Send the chat request
-    result = client.chat(
-        question=user_content,
-        chat_title=datetime.now().strftime("%Y-%m-%d %H:%M"),
-        folder_name="ai-frame-image-server" 
-    )
+    try:
+        result = client.chat(
+            question=user_content,
+            chat_title=datetime.now().strftime("%Y-%m-%d %H:%M"),
+            folder_name="ai-frame-image-server"
+        )
 
-    if result:
-        prompt = result["response"].strip('"')
-    else:
-        # Fallback if the request fails
-        prompt = "A vibrant landscape"
+        if result:
+            prompt = result["response"].strip('"')
+        else:
+            # Return None if the request fails
+            logging.warning(f"OpenWebUI request failed with model: {model}")
+            return None
+    except Exception as e:
+        logging.error(f"Error in OpenWebUI request with model {model}: {e}")
+        return None
 
     match = re.search(r'"([^"]+)"', prompt)
     if not match:

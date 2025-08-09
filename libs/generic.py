@@ -158,7 +158,10 @@ def load_prompt_models_from_config():
 
 
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
-    """Create a prompt using a randomly selected model from OpenWebUI or OpenRouter."""
+    """Create a prompt using a randomly selected model from OpenWebUI or OpenRouter.
+    
+    If OpenWebUI fails, it will retry once. If it fails again, it will fallback to OpenRouter.
+    """
     prompt_models = load_prompt_models_from_config()
     
     if not prompt_models:
@@ -168,16 +171,59 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
     # Randomly select a model
     service, model = random.choice(prompt_models)
     
-    if service == "openwebui":
-        # Import here to avoid circular imports
-        from libs.openwebui import create_prompt_on_openwebui
-        return create_prompt_on_openwebui(base_prompt, topic)
-    elif service == "openrouter":
-        # Import here to avoid circular imports
-        from libs.openrouter import create_prompt_on_openrouter
-        return create_prompt_on_openrouter(base_prompt, topic)
+    # Import here to avoid circular imports
+    from libs.openwebui import create_prompt_on_openwebui
+    from libs.openrouter import create_prompt_on_openrouter
     
-    return None
+    if service == "openwebui":
+        try:
+            # First attempt with OpenWebUI
+            logging.info(f"Attempting to generate prompt with OpenWebUI using model: {model}")
+            result = create_prompt_on_openwebui(base_prompt, topic, model)
+            if result:
+                return result
+            
+            # If first attempt returns None, try again
+            logging.warning("First OpenWebUI attempt failed. Retrying...")
+            result = create_prompt_on_openwebui(base_prompt, topic, model)
+            if result:
+                return result
+            
+            # If second attempt fails, fallback to OpenRouter
+            logging.warning("Second OpenWebUI attempt failed. Falling back to OpenRouter...")
+            openrouter_models = [m for m in prompt_models if m[0] == "openrouter"]
+            if openrouter_models:
+                _, openrouter_model = random.choice(openrouter_models)
+                return create_prompt_on_openrouter(base_prompt, topic, openrouter_model)
+            else:
+                logging.error("No OpenRouter models configured for fallback.")
+                return "A colorful abstract composition"  # Default fallback prompt
+                
+        except Exception as e:
+            logging.error(f"Error with OpenWebUI: {e}")
+            # Fallback to OpenRouter on exception
+            logging.warning("OpenWebUI exception. Falling back to OpenRouter...")
+            openrouter_models = [m for m in prompt_models if m[0] == "openrouter"]
+            if openrouter_models:
+                _, openrouter_model = random.choice(openrouter_models)
+                try:
+                    return create_prompt_on_openrouter(base_prompt, topic, openrouter_model)
+                except Exception as e2:
+                    logging.error(f"Error with OpenRouter fallback: {e2}")
+                    return "A colorful abstract composition"  # Default fallback prompt
+            else:
+                logging.error("No OpenRouter models configured for fallback.")
+                return "A colorful abstract composition"  # Default fallback prompt
+    
+    elif service == "openrouter":
+        try:
+            # Use OpenRouter
+            return create_prompt_on_openrouter(base_prompt, topic, model)
+        except Exception as e:
+            logging.error(f"Error with OpenRouter: {e}")
+            return "A colorful abstract composition"  # Default fallback prompt
+    
+    return "A colorful abstract composition"  # Default fallback prompt
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
