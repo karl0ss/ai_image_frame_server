@@ -143,7 +143,7 @@
         display: none;
         max-height: 300px;
         overflow-y: auto;
-        width: 300px;
+        width: 400px;
     }
 
     .queue-item {
@@ -156,17 +156,28 @@
         border-bottom: none;
     }
 
-    .queue-item .model {
-        font-weight: bold;
-        color: #00aaff;
-    }
-
     .queue-item .prompt {
         font-size: 0.9em;
         color: #aaa;
+        white-space: normal;
+        word-wrap: break-word;
+        position: relative;
+        cursor: pointer;
+    }
+    
+    .queue-item .prompt:hover::after {
+        content: "Model: " attr(data-model);
+        position: absolute;
+        bottom: 100%;
+        left: 0;
+        background: #333;
+        color: #00aaff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        z-index: 1002;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 </style>
 {% endblock %}
@@ -357,8 +368,7 @@
                         const item = document.createElement('div');
                         item.className = 'queue-item';
                         item.innerHTML = `
-                            <div class="model">${job.model}</div>
-                            <div class="prompt" title="${job.prompt}">${job.prompt}</div>
+                            <div class="prompt" data-model="${job.model}">${job.prompt}</div>
                         `;
                         container.appendChild(item);
                     });
