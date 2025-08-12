@@ -194,3 +194,17 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model") -
         generate_image("image", comfy_prompt=prompt, model=model)
 
     logging.info(f"{selected_workflow} generation started with prompt: {prompt}")
+
+def get_queue_count() -> int:
+    """Fetches the current queue count from ComfyUI (pending + running jobs)."""
+    url = user_config["comfyui"]["comfyui_url"] + "/queue"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        pending = len(data.get("queue_pending", []))
+        running = len(data.get("queue_running", []))
+        return pending + running
+    except Exception as e:
+        logging.error(f"Error fetching queue count: {e}")
+        return 0

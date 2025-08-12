@@ -1,6 +1,6 @@
 from flask import Blueprint, request, render_template, redirect, url_for, session
 import threading
-from libs.comfyui import create_image, select_model, get_available_models
+from libs.comfyui import create_image, select_model, get_available_models, get_queue_count
 from libs.openwebui import create_prompt_on_openwebui
 from libs.generic import load_models_from_config, load_topics_from_config, load_openrouter_models_from_config, load_openwebui_models_from_config, create_prompt_with_random_model
 import os
@@ -40,13 +40,15 @@ def create():
     openwebui_models = load_openwebui_models_from_config()
     openrouter_models = load_openrouter_models_from_config()
     
+    queue_count = get_queue_count()
     return render_template("create_image.html",
-                         sdxl_models=sdxl_models,
+                         sdxx_models=sdxl_models,
                          flux_models=flux_models,
                          qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
-                         topics=load_topics_from_config())
+                         topics=load_topics_from_config(),
+                         queue_count=queue_count)
 
 @bp.route("/image_queued")
 def image_queued():
@@ -68,13 +70,15 @@ def create_image_page():
     openwebui_models = load_openwebui_models_from_config()
     openrouter_models = load_openrouter_models_from_config()
     
+    queue_count = get_queue_count()
     return render_template("create_image.html",
                          sdxl_models=sdxl_models,
                          flux_models=flux_models,
                          qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
-                         topics=load_topics_from_config())
+                         topics=load_topics_from_config(),
+                         queue_count=queue_count)
 
 
 def init_app(config):

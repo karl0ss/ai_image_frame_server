@@ -135,6 +135,9 @@
 {% endblock %}
 
 {% block content %}
+<div style="position: fixed; top: 20px; right: 20px; background: #333; padding: 5px 10px; border-radius: 5px; z-index: 1000;">
+    Queue: {{ queue_count | default(0) }}
+</div>
 <h1 style="margin-bottom: 20px;">Create An Image</h1>
 
 <textarea id="prompt-box" placeholder="Enter your custom prompt here..."></textarea>
