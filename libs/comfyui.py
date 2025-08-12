@@ -208,3 +208,54 @@ def get_queue_count() -> int:
     except Exception as e:
         logging.error(f"Error fetching queue count: {e}")
         return 0
+
+def get_queue_details() -> list:
+    """Fetches detailed queue information including model names and prompts."""
+    url = user_config["comfyui"]["comfyui_url"] + "/queue"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        jobs = []
+        for job_list in [data.get("queue_running", []), data.get("queue_pending", [])]:
+            for job in job_list:
+                # Extract prompt data (format: [priority, time, prompt])
+                prompt_data = job[2]
+                model = "Unknown"
+                prompt = "No prompt"
+                
+                # Find model loader node (works for SDXL/FLUX/Qwen workflows)
+                for node in prompt_data.values():
+                    if node.get("class_type") in ["CheckpointLoaderSimple", "UnetLoaderGGUFAdvancedDisTorchMultiGPU"]:
+                        model = node["inputs"].get("ckpt_name", "Unknown")
+                        break
+                
+                # Find prompt node using class_type pattern and title matching
+                for node in prompt_data.values():
+                    class_type = node.get("class_type", "")
+                    if "CLIPTextEncode" in class_type and "text" in node["inputs"]:
+                        meta = node.get('_meta', {})
+                        title = meta.get('title', '').lower()
+                        if 'positive' in title or 'prompt' in title:
+                            prompt = node["inputs"]["text"]
+                            break
+                
+                jobs.append({
+                    "id": job[0],
+                    "model": model.split(".")[0] if model != "Unknown" else model,
+                    "prompt": prompt
+                })
+        return jobs
+    except Exception as e:
+        logging.error(f"Error fetching queue details: {e}")
+        return []
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
+        pending = len(data.get("queue_pending", []))
+        running = len(data.get("queue_running", []))
+        return pending + running
+    except Exception as e:
+        logging.error(f"Error fetching queue count: {e}")
+        return 0
