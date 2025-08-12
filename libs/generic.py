@@ -113,9 +113,24 @@ def get_current_version():
         return "unknown"
 
 def load_models_from_config():
-    flux_models = load_config()["comfyui:flux"]["models"].split(",")
-    sdxl_models = load_config()["comfyui"]["models"].split(",")
-    qwen_models = load_config()["comfyui:qwen"]["models"].split(",")
+    config = load_config()
+    
+    # Only load FLUX models if FLUX feature is enabled
+    use_flux = config["comfyui"].get("flux", "False").lower() == "true"
+    if use_flux and "comfyui:flux" in config and "models" in config["comfyui:flux"]:
+        flux_models = config["comfyui:flux"]["models"].split(",")
+    else:
+        flux_models = []
+    
+    sdxl_models = config["comfyui"]["models"].split(",")
+    
+    # Only load Qwen models if Qwen feature is enabled
+    use_qwen = config["comfyui"].get("qwen", "False").lower() == "true"
+    if use_qwen and "comfyui:qwen" in config and "models" in config["comfyui:qwen"]:
+        qwen_models = config["comfyui:qwen"]["models"].split(",")
+    else:
+        qwen_models = []
+    
     sorted_flux_models = sorted(flux_models, key=str.lower)
     sorted_sdxl_models = sorted(sdxl_models, key=str.lower)
     sorted_qwen_models = sorted(qwen_models, key=str.lower)
