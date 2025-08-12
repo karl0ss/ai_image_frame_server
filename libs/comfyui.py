@@ -122,6 +122,7 @@ def generate_image(
 def select_model(model: str) -> tuple[str, str]:
     use_flux = json.loads(user_config["comfyui"].get("FLUX", "false").lower())
     only_flux = json.loads(user_config["comfyui"].get("ONLY_FLUX", "false").lower())
+    use_qwen = json.loads(user_config["comfyui"].get("Qwen", "false").lower())
 
     if model == "Random Image Model":
         selected_workflow = "FLUX" if (use_flux and (only_flux or random.choice([True, False]))) else "SDXL"
@@ -133,6 +134,8 @@ def select_model(model: str) -> tuple[str, str]:
     if model == "Random Image Model":
         if selected_workflow == "FLUX":
             valid_models = user_config["comfyui:flux"]["models"].split(",")
+        elif selected_workflow == "Qwen":
+            valid_models = user_config["comfyui:qwen"]["models"].split(",")
         else:  # SDXL
             available_model_list = user_config["comfyui"]["models"].split(",")
             valid_models = list(set(get_available_models()) & set(available_model_list))
@@ -171,6 +174,20 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model") -
             save_param="filename",
             model_node="UnetLoaderGGUFAdvancedDisTorchMultiGPU",
             model_param="unet_name",
+            model=model
+        )
+    elif selected_workflow == "Qwen":
+        generate_image(
+            file_name="image",
+            comfy_prompt=prompt,
+            workflow_path="./workflow_qwen.json",
+            prompt_node="Positive",
+            seed_node="KSampler",
+            seed_param="seed",
+            save_node="Save Image",
+            save_param="filename_prefix",
+            model_node="Load Checkpoint",
+            model_param="ckpt_name",
             model=model
         )
     else:  # SDXL

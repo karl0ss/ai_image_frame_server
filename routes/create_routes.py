@@ -35,14 +35,15 @@ def create():
         threading.Thread(target=lambda: create_image(prompt, model)).start()
         return redirect(url_for("create_routes.image_queued", prompt=prompt, model=model.split(".")[0]))
 
-    # Load all models (SDXL and FLUX only)
-    sdxl_models, flux_models = load_models_from_config()
+    # Load all models (SDXL, FLUX, and Qwen)
+    sdxl_models, flux_models, qwen_models = load_models_from_config()
     openwebui_models = load_openwebui_models_from_config()
     openrouter_models = load_openrouter_models_from_config()
     
     return render_template("create_image.html",
                          sdxl_models=sdxl_models,
                          flux_models=flux_models,
+                         qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
                          topics=load_topics_from_config())
@@ -62,14 +63,15 @@ def create_image_page():
     if user_config["frame"]["create_requires_auth"] == "True" and not session.get("authenticated"):
         return redirect(url_for("auth_routes.login", next=request.path))
     
-    # Load all models (SDXL and FLUX only)
-    sdxl_models, flux_models = load_models_from_config()
+    # Load all models (SDXL, FLUX, and Qwen)
+    sdxl_models, flux_models, qwen_models = load_models_from_config()
     openwebui_models = load_openwebui_models_from_config()
     openrouter_models = load_openrouter_models_from_config()
     
     return render_template("create_image.html",
                          sdxl_models=sdxl_models,
                          flux_models=flux_models,
+                         qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
                          topics=load_topics_from_config())

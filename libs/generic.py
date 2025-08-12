@@ -115,9 +115,11 @@ def get_current_version():
 def load_models_from_config():
     flux_models = load_config()["comfyui:flux"]["models"].split(",")
     sdxl_models = load_config()["comfyui"]["models"].split(",")
+    qwen_models = load_config()["comfyui:qwen"]["models"].split(",")
     sorted_flux_models = sorted(flux_models, key=str.lower)
     sorted_sdxl_models = sorted(sdxl_models, key=str.lower)
-    return sorted_sdxl_models, sorted_flux_models
+    sorted_qwen_models = sorted(qwen_models, key=str.lower)
+    return sorted_sdxl_models, sorted_flux_models, sorted_qwen_models
 
 
 def load_topics_from_config():

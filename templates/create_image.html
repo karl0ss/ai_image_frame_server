@@ -157,6 +157,13 @@
                 {% endfor %}
             </optgroup>
             {% endif %}
+            {% if qwen_models %}
+            <optgroup label="Qwen">
+                {% for m in qwen_models %}
+                <option value="{{ m }}">{{ m.rsplit('.', 1)[0] if '.' in m else m }}</option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
             {% if sdxl_models %}
             <optgroup label="SDXL">
                 {% for m in sdxl_models %}
