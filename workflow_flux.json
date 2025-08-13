@@ -1,12 +1,31 @@
 {
+  "6": {
+    "inputs": {
+      "text": "Terminator endoskeleton riding a bmx bike",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "clip": [
+        "39",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    }
+  },
   "8": {
     "inputs": {
       "samples": [
-        "62",
-        1
+        "13",
+        0
       ],
       "vae": [
-        "73",
+        "41",
         0
       ]
     },
@@ -15,298 +34,157 @@
       "title": "VAE Decode"
     }
   },
-  "40": {
+  "9": {
     "inputs": {
-      "int": 20
-    },
-    "class_type": "Int Literal (Image Saver)",
-    "_meta": {
-      "title": "Generation Steps"
-    }
-  },
-  "41": {
-    "inputs": {
-      "width": 720,
-      "height": 1080,
-      "aspect_ratio": "custom",
-      "swap_dimensions": "Off",
-      "upscale_factor": 2,
-      "prescale_factor": 1,
-      "batch_size": 1
-    },
-    "class_type": "CR Aspect Ratio",
-    "_meta": {
-      "title": "CR Aspect Ratio"
-    }
-  },
-  "42": {
-    "inputs": {
-      "filename": "THISFILE",
-      "path": "",
-      "extension": "png",
-      "steps": [
-        "40",
-        0
-      ],
-      "cfg": [
-        "52",
-        0
-      ],
-      "modelname": "flux1-dev-Q4_0.gguf",
-      "sampler_name": [
-        "50",
-        1
-      ],
-      "scheduler_name": "normal",
-      "positive": [
-        "44",
-        0
-      ],
-      "negative": [
-        "45",
-        0
-      ],
-      "seed_value": [
-        "48",
-        0
-      ],
-      "width": [
-        "41",
-        0
-      ],
-      "height": [
-        "41",
-        1
-      ],
-      "lossless_webp": true,
-      "quality_jpeg_or_webp": 100,
-      "optimize_png": false,
-      "counter": 0,
-      "denoise": [
-        "53",
-        0
-      ],
-      "clip_skip": 0,
-      "time_format": "%Y-%m-%d-%H%M%S",
-      "save_workflow_as_json": true,
-      "embed_workflow": true,
-      "additional_hashes": "",
-      "download_civitai_data": true,
-      "easy_remix": true,
-      "speak_and_recognation": {
-        "__value__": [
-          false,
-          true
-        ]
-      },
+      "filename_prefix": "ComfyUI",
       "images": [
         "8",
         0
       ]
     },
-    "class_type": "Image Saver",
+    "class_type": "SaveImage",
     "_meta": {
-      "title": "CivitAI Image Saver"
+      "title": "Save Image"
     }
   },
-  "44": {
-    "inputs": {
-      "text": "Yautja Predator wielding flamethrower in smoky, cyberpunk alleyway darkness",
-      "speak_and_recognation": {
-        "__value__": [
-          false,
-          true
-        ]
-      }
-    },
-    "class_type": "ttN text",
-    "_meta": {
-      "title": "Positive Prompt T5"
-    }
-  },
-  "45": {
-    "inputs": {
-      "text": "text, watermark, deformed Avoid flat colors, poor lighting, and artificial elements. No unrealistic elements, low resolution, or flat colors. Avoid generic objects, poor lighting, and inconsistent styles, blurry, low-quality, distorted faces, overexposed lighting, extra limbs, bad anatomy, low contrast",
-      "speak_and_recognation": {
-        "__value__": [
-          false,
-          true
-        ]
-      }
-    },
-    "class_type": "ttN text",
-    "_meta": {
-      "title": "Negative Prompt"
-    }
-  },
-  "47": {
-    "inputs": {
-      "text": [
-        "44",
-        0
-      ],
-      "speak_and_recognation": {
-        "__value__": [
-          false,
-          true
-        ]
-      },
-      "clip": [
-        "72",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "Prompt Encoder"
-    }
-  },
-  "48": {
-    "inputs": {
-      "seed": 47371998700984,
-      "increment": 1
-    },
-    "class_type": "Seed Generator (Image Saver)",
-    "_meta": {
-      "title": "Seed"
-    }
-  },
-  "49": {
-    "inputs": {
-      "scheduler": "beta"
-    },
-    "class_type": "Scheduler Selector (Comfy) (Image Saver)",
-    "_meta": {
-      "title": "Scheduler"
-    }
-  },
-  "50": {
-    "inputs": {
-      "sampler_name": "euler"
-    },
-    "class_type": "Sampler Selector (Image Saver)",
-    "_meta": {
-      "title": "Sampler"
-    }
-  },
-  "52": {
-    "inputs": {
-      "float": 3.500000000000001
-    },
-    "class_type": "Float Literal (Image Saver)",
-    "_meta": {
-      "title": "CFG Scale"
-    }
-  },
-  "53": {
-    "inputs": {
-      "float": 1.0000000000000002
-    },
-    "class_type": "Float Literal (Image Saver)",
-    "_meta": {
-      "title": "Denoise"
-    }
-  },
-  "62": {
+  "13": {
     "inputs": {
       "noise": [
-        "65",
+        "25",
         0
       ],
       "guider": [
-        "67",
+        "22",
         0
       ],
       "sampler": [
-        "63",
+        "16",
         0
       ],
       "sigmas": [
-        "64",
+        "17",
         0
       ],
       "latent_image": [
-        "41",
-        5
+        "27",
+        0
       ]
     },
     "class_type": "SamplerCustomAdvanced",
     "_meta": {
-      "title": "Custom Sampler"
+      "title": "SamplerCustomAdvanced"
     }
   },
-  "63": {
+  "16": {
     "inputs": {
-      "sampler_name": [
-        "50",
-        0
-      ]
+      "sampler_name": "euler"
     },
     "class_type": "KSamplerSelect",
     "_meta": {
-      "title": "KSampler Select"
+      "title": "KSamplerSelect"
     }
   },
-  "64": {
+  "17": {
     "inputs": {
-      "scheduler": [
-        "49",
-        0
-      ],
-      "steps": [
-        "40",
-        0
-      ],
-      "denoise": [
-        "53",
-        0
-      ],
+      "scheduler": "simple",
+      "steps": 20,
+      "denoise": 1,
       "model": [
-        "35",
+        "30",
         0
       ]
     },
     "class_type": "BasicScheduler",
     "_meta": {
-      "title": "Sigma Generator"
+      "title": "BasicScheduler"
     }
   },
-  "65": {
-    "inputs": {
-      "noise_seed": [
-        "48",
-        0
-      ]
-    },
-    "class_type": "RandomNoise",
-    "_meta": {
-      "title": "Noise Generator"
-    }
-  },
-  "67": {
+  "22": {
     "inputs": {
       "model": [
-        "35",
+        "30",
         0
       ],
       "conditioning": [
-        "47",
+        "26",
         0
       ]
     },
     "class_type": "BasicGuider",
     "_meta": {
-      "title": "Prompt Guider"
+      "title": "BasicGuider"
     }
   },
-  "72": {
+  "25": {
+    "inputs": {
+      "noise_seed": 707623342760804
+    },
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    }
+  },
+  "26": {
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance",
+    "_meta": {
+      "title": "FluxGuidance"
+    }
+  },
+  "27": {
+    "inputs": {
+      "width": 720,
+      "height": 1088,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage",
+    "_meta": {
+      "title": "CR Aspect Ratio"
+    }
+  },
+  "30": {
+    "inputs": {
+      "max_shift": 1.15,
+      "base_shift": 0.5,
+      "width": 720,
+      "height": 1088,
+      "model": [
+        "38",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingFlux",
+    "_meta": {
+      "title": "ModelSamplingFlux"
+    }
+  },
+  "38": {
+    "inputs": {
+      "unet_name": "flux1-dev-Q4_0.gguf",
+      "device": "cuda:1",
+      "virtual_vram_gb": 0,
+      "use_other_vram": true,
+      "expert_mode_allocations": ""
+    },
+    "class_type": "UnetLoaderGGUFDisTorchMultiGPU",
+    "_meta": {
+      "title": "UnetLoaderGGUFDisTorchMultiGPU"
+    }
+  },
+  "39": {
     "inputs": {
       "clip_name1": "t5-v1_1-xxl-encoder-Q4_K_M.gguf",
       "clip_name2": "clip_l.safetensors",
       "type": "flux",
       "device": "cuda:0",
       "virtual_vram_gb": 0,
-      "use_other_vram": false,
+      "use_other_vram": true,
       "expert_mode_allocations": ""
     },
     "class_type": "DualCLIPLoaderGGUFDisTorchMultiGPU",
@@ -314,7 +192,7 @@
       "title": "DualCLIPLoaderGGUFDisTorchMultiGPU"
     }
   },
-  "73": {
+  "41": {
     "inputs": {
       "vae_name": "FLUX1/ae.safetensors",
       "device": "cuda:0"
@@ -322,22 +200,6 @@
     "class_type": "VAELoaderMultiGPU",
     "_meta": {
       "title": "VAELoaderMultiGPU"
-    }
-  },
-  "35": {
-    "inputs": {
-      "unet_name": "flux1-dev-Q4_0.gguf",
-      "dequant_dtype": "default",
-      "patch_dtype": "default",
-      "patch_on_device": false,
-      "device": "cuda:1",
-      "virtual_vram_gb": 0,
-      "use_other_vram": false,
-      "expert_mode_allocations": ""
-    },
-    "class_type": "UnetLoaderGGUFAdvancedDisTorchMultiGPU",
-    "_meta": {
-      "title": "UnetLoaderGGUFAdvancedDisTorchMultiGPU"
     }
   }
 }

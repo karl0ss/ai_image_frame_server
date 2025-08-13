@@ -167,12 +167,12 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model") -
             file_name="image",
             comfy_prompt=prompt,
             workflow_path="./workflow_flux.json",
-            prompt_node="Positive Prompt T5",
-            seed_node="Seed",
-            seed_param="seed",
-            save_node="CivitAI Image Saver",
-            save_param="filename",
-            model_node="UnetLoaderGGUFAdvancedDisTorchMultiGPU",
+            prompt_node="CLIP Text Encode (Positive Prompt)",
+            seed_node="RandomNoise",
+            seed_param="noise_seed",
+            save_node="Save Image",
+            save_param="filename_prefix",
+            model_node="UnetLoaderGGUFDisTorchMultiGPU",
             model_param="unet_name",
             model=model
         )

@@ -84,8 +84,8 @@ def get_details_from_png(path):
             try:
                 # Flux workflow
                 data = json.loads(img.info["prompt"])
-                prompt = data['44']['inputs']['text']
-                model = data['35']['inputs']['unet_name'].split(".")[0]
+                prompt = data['6']['inputs']['text']
+                model = data['38']['inputs']['unet_name'].split(".")[0]
             except KeyError:
                 # SDXL workflow
                 data = json.loads(img.info["prompt"])
