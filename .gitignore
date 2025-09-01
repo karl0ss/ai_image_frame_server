@@ -12,3 +12,4 @@ test.py
 .vscode/launch.json
 favourites.json
 .vscode/launch.json
+venv/*
