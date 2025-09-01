@@ -32,9 +32,17 @@ def get_available_models() -> list:
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
-        general = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [])[0]
-        flux = data.get("UnetLoaderGGUF", {}).get("input", {}).get("required", {}).get("unet_name", [])[0]
-        return general + flux
+        # Get SDXL models from CheckpointLoaderSimple
+        general = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [[]])[0]
+        # Get FLUX models from UnetLoaderGGUF
+        flux = data.get("UnetLoaderGGUF", {}).get("input", {}).get("required", {}).get("unet_name", [[]])[0]
+        # Combine both lists, handling cases where one might be missing
+        all_models = []
+        if isinstance(general, list):
+            all_models.extend(general)
+        if isinstance(flux, list):
+            all_models.extend(flux)
+        return all_models
     else:
         print(f"Failed to fetch models: {response.status_code}")
         return []
@@ -125,9 +133,25 @@ def select_model(model: str) -> tuple[str, str]:
     use_qwen = json.loads(user_config["comfyui"].get("Qwen", "false").lower())
 
     if model == "Random Image Model":
-        selected_workflow = "FLUX" if (use_flux and (only_flux or random.choice([True, False]))) else "SDXL"
+        # Create a list of available workflows based on configuration
+        available_workflows = []
+        if not only_flux:
+            available_workflows.append("SDXL")
+        if use_flux:
+            available_workflows.append("FLUX")
+        if use_qwen:
+            available_workflows.append("Qwen")
+        
+        # If no workflows are available, default to SDXL
+        if not available_workflows:
+            available_workflows.append("SDXL")
+        
+        # Randomly select a workflow
+        selected_workflow = random.choice(available_workflows)
     elif "flux" in model.lower():
         selected_workflow = "FLUX"
+    elif "qwen" in model.lower():
+        selected_workflow = "Qwen"
     else:
         selected_workflow = "SDXL"
 
@@ -139,6 +163,13 @@ def select_model(model: str) -> tuple[str, str]:
         else:  # SDXL
             available_model_list = user_config["comfyui"]["models"].split(",")
             valid_models = list(set(get_available_models()) & set(available_model_list))
+            # If no valid models found, fall back to configured models
+            if not valid_models:
+                valid_models = available_model_list
+        # Ensure we have at least one model to choose from
+        if not valid_models:
+            # Fallback to a default model
+            valid_models = ["zavychromaxl_v100.safetensors"]
         model = random.choice(valid_models)
 
     return selected_workflow, model
