@@ -52,6 +52,12 @@
   "6": {
     "inputs": {
       "text": "A bustling cyberpunk street at night, filled with neon signs, rain-soaked pavement, and futuristic street vendors. High detail, vivid neon colors, and realistic reflections.",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
       "clip": [
         "4",
         1
@@ -65,6 +71,12 @@
   "7": {
     "inputs": {
       "text": "text, watermark, deformed Avoid flat colors, poor lighting, and artificial elements. No unrealistic elements, low resolution, or flat colors. Avoid generic objects, poor lighting, and inconsistent styles, blurry, low-quality, distorted faces, overexposed lighting, extra limbs, bad anatomy, low contrast",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
       "clip": [
         "4",
         1
@@ -95,13 +107,27 @@
     "inputs": {
       "filename_prefix": "ComfyUI",
       "images": [
-        "8",
+        "10",
         0
       ]
     },
     "class_type": "SaveImage",
     "_meta": {
       "title": "Save Image"
+    }
+  },
+  "10": {
+    "inputs": {
+      "offload_model": true,
+      "offload_cache": true,
+      "anything": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "VRAMCleanup",
+    "_meta": {
+      "title": "🎈VRAM-Cleanup"
     }
   }
 }

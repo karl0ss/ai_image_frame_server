@@ -38,7 +38,7 @@
     "inputs": {
       "filename_prefix": "ComfyUI",
       "images": [
-        "8",
+        "42",
         0
       ]
     },
@@ -200,6 +200,20 @@
     "class_type": "VAELoaderMultiGPU",
     "_meta": {
       "title": "VAELoaderMultiGPU"
+    }
+  },
+  "42": {
+    "inputs": {
+      "offload_model": true,
+      "offload_cache": true,
+      "anything": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "VRAMCleanup",
+    "_meta": {
+      "title": "🎈VRAM-Cleanup"
     }
   }
 }
