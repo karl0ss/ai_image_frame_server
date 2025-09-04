@@ -240,7 +240,6 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             logging.error(f"Error with OpenRouter: {e}")
             return "A colorful abstract composition"  # Default fallback prompt
     
-    return "A colorful abstract composition"  # Default fallback prompt
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]

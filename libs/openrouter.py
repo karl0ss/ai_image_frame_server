@@ -1,8 +1,9 @@
 import random
 import logging
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 import nest_asyncio
 from libs.generic import load_recent_prompts, load_config
+from libs.openwebui import create_prompt_on_openwebui
 import re
 nest_asyncio.apply()
 
@@ -90,6 +91,20 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
             prompt = match.group(1)
         logging.debug(prompt)
         return prompt
+    except RateLimitError as e:
+        logging.warning(f"OpenRouter rate limit exceeded (429): {e}. Falling back to local OpenWebUI model.")
+        # Try to use OpenWebUI as fallback
+        openwebui_models = [m.strip() for m in user_config["openwebui"]["models"].split(",") if m.strip()] if "openwebui" in user_config and "models" in user_config["openwebui"] else []
+        if openwebui_models:
+            selected_model = random.choice(openwebui_models)
+            try:
+                return create_prompt_on_openwebui(user_content, topic, selected_model)
+            except Exception as e2:
+                logging.error(f"OpenWebUI fallback also failed: {e2}")
+                return "A colorful abstract composition"  # Final fallback
+        else:
+            logging.error("No OpenWebUI models configured for fallback.")
+            return "A colorful abstract composition"  # Final fallback
     except Exception as e:
         logging.error(f"Error generating prompt with OpenRouter: {e}")
         return ""
