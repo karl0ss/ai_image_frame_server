@@ -48,7 +48,7 @@ def scheduled_task():
     print(f"Executing scheduled task at {time.strftime('%Y-%m-%d %H:%M:%S')}")
     # Generate a random prompt using either OpenWebUI or OpenRouter
     from libs.generic import create_prompt_with_random_model
-    prompt = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.")
+    prompt = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.", "")
     if prompt:
         # Select a random model
         import random
