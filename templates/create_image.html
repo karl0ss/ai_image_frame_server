@@ -249,6 +249,13 @@
                 {% endfor %}
             </optgroup>
             {% endif %}
+            {% if openrouter_free_models %}
+            <optgroup label="OpenRouter Free">
+                {% for m in openrouter_free_models %}
+                <option value="openrouter:{{ m }}">{{ m }}</option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
         </select>
     </div>
     

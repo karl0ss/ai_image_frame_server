@@ -38,8 +38,8 @@ def create():
     # Load all models (SDXL, FLUX, and Qwen)
     sdxl_models, flux_models, qwen_models = load_models_from_config()
     openwebui_models = load_openwebui_models_from_config()
-    openrouter_models = load_openrouter_models_from_config()
-    
+    openrouter_models, openrouter_free_models = load_openrouter_models_from_config()
+
     queue_count = get_queue_count()
     return render_template("create_image.html",
                          sdxx_models=sdxl_models,
@@ -47,6 +47,7 @@ def create():
                          qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
+                         openrouter_free_models=openrouter_free_models,
                          topics=load_topics_from_config(),
                          queue_count=queue_count)
 
@@ -68,8 +69,8 @@ def create_image_page():
     # Load all models (SDXL, FLUX, and Qwen)
     sdxl_models, flux_models, qwen_models = load_models_from_config()
     openwebui_models = load_openwebui_models_from_config()
-    openrouter_models = load_openrouter_models_from_config()
-    
+    openrouter_models, openrouter_free_models = load_openrouter_models_from_config()
+
     queue_count = get_queue_count()
     return render_template("create_image.html",
                          sdxl_models=sdxl_models,
@@ -77,6 +78,7 @@ def create_image_page():
                          qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
+                         openrouter_free_models=openrouter_free_models,
                          topics=load_topics_from_config(),
                          queue_count=queue_count)
 

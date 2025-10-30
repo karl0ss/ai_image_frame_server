@@ -14,6 +14,23 @@ LOG_FILE = "./prompts_log.jsonl"
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
 
+def get_free_models():
+    """Fetch all free models from OpenRouter."""
+    if user_config["openrouter"].get("enabled", "False").lower() != "true":
+        return []
+    try:
+        client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=user_config["openrouter"]["api_key"],
+        )
+        all_models_response = client.models.list()
+        all_models = [m.id for m in all_models_response.data]
+        free_models = [m for m in all_models if "free" in m.lower()]
+        return sorted(free_models, key=str.lower)
+    except Exception as e:
+        logging.warning(f"Failed to fetch free models from OpenRouter: {e}")
+        return []
+
 def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str = None) -> str:
     """Sends prompt to OpenRouter and returns the generated response."""
     # Check if OpenRouter is enabled
@@ -96,24 +113,49 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
             api_key=user_config["openrouter"]["api_key"],
         )
 
-        completion = client.chat.completions.create(
-            model=model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a prompt generator for Stable Diffusion. "
-                        "Generate a detailed and imaginative prompt with a strong visual theme. "
-                        "Focus on lighting, atmosphere, and artistic style. "
-                        "Keep the prompt concise, no extra commentary or formatting."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": user_content,
-                },
-            ]
+        system_content = (
+            "You are a prompt generator for Stable Diffusion. "
+            "Generate a detailed and imaginative prompt with a strong visual theme. "
+            "Focus on lighting, atmosphere, and artistic style. "
+            "Keep the prompt concise, no extra commentary or formatting."
         )
+
+        # Try the specified model first
+        try:
+            completion = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_content,
+                    },
+                    {
+                        "role": "user",
+                        "content": user_content,
+                    },
+                ]
+            )
+        except Exception as e:
+            # If system message fails (e.g., model doesn't support developer instructions),
+            # retry with instructions included in user message
+            if "developer instruction" in str(e).lower() or "system message" in str(e).lower():
+                logging.info(f"Model {model} doesn't support system messages, retrying with instructions in user message")
+                combined_content = f"{system_content}\n\n{user_content}"
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": combined_content,
+                        },
+                    ]
+                )
+            else:
+                # If it's another error, try fallback models
+                logging.warning(f"Error with model {model}: {e}. Trying fallback models.")
+                raise e
+
+        # If we get here, the completion was successful
 
         prompt = completion.choices[0].message.content.strip('"')
         match = re.search(r'"([^"]+)"', prompt)
@@ -138,5 +180,45 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
             logging.error("No OpenWebUI models configured for fallback.")
             return "A colorful abstract composition"  # Final fallback
     except Exception as e:
-        logging.error(f"Error generating prompt with OpenRouter: {e}")
+        # If the specified model fails, try fallback models
+        logging.warning(f"Primary model {model} failed: {e}. Trying fallback models.")
+
+        # Get all available models for fallback
+        configured_models = [m.strip() for m in user_config["openrouter"]["models"].split(",") if m.strip()]
+        free_models = get_free_models()
+
+        # Combine configured and free models, excluding the failed one
+        all_models = configured_models + free_models
+        fallback_models = [m for m in all_models if m != model]
+
+        if not fallback_models:
+            logging.error("No fallback models available.")
+            return ""
+
+        # Try up to 3 fallback models
+        for fallback_model in fallback_models[:3]:
+            try:
+                logging.info(f"Trying fallback model: {fallback_model}")
+                completion = client.chat.completions.create(
+                    model=fallback_model,
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": f"{system_content}\n\n{user_content}",
+                        },
+                    ]
+                )
+                prompt = completion.choices[0].message.content.strip('"')
+                match = re.search(r'"([^"]+)"', prompt)
+                if not match:
+                    match = re.search(r":\s*\n*\s*(.+)", prompt)
+                if match:
+                    prompt = match.group(1)
+                logging.info(f"Successfully generated prompt with fallback model: {fallback_model}")
+                return prompt
+            except Exception as fallback_e:
+                logging.warning(f"Fallback model {fallback_model} also failed: {fallback_e}")
+                continue
+
+        logging.error("All models failed, including fallbacks.")
         return ""

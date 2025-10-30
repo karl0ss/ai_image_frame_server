@@ -149,8 +149,13 @@ def load_openrouter_models_from_config():
     config = load_config()
     if config["openrouter"].get("enabled", "False").lower() == "true":
         models = config["openrouter"]["models"].split(",")
-        return sorted([model.strip() for model in models if model.strip()], key=str.lower)
-    return []
+        configured_models = sorted([model.strip() for model in models if model.strip()], key=str.lower)
+        free_models = []
+        if config["openrouter"].get("list_all_free_models", "False").lower() == "true":
+            from libs.openrouter import get_free_models
+            free_models = get_free_models()
+        return configured_models, free_models
+    return [], []
 
 def load_openwebui_models_from_config():
     config = load_config()
@@ -163,17 +168,22 @@ def load_prompt_models_from_config():
     """Load and return a list of available prompt generation models (both OpenWebUI and OpenRouter)."""
     config = load_config()
     prompt_models = []
-    
+
     # Add OpenWebUI models if configured
     if "openwebui" in config and "models" in config["openwebui"]:
         openwebui_models = config["openwebui"]["models"].split(",")
         prompt_models.extend([("openwebui", model.strip()) for model in openwebui_models if model.strip()])
-    
+
     # Add OpenRouter models if enabled and configured
     if config["openrouter"].get("enabled", "False").lower() == "true" and "models" in config["openrouter"]:
         openrouter_models = config["openrouter"]["models"].split(",")
         prompt_models.extend([("openrouter", model.strip()) for model in openrouter_models if model.strip()])
-    
+        # Add free models if flag is set
+        if config["openrouter"].get("list_all_free_models", "False").lower() == "true":
+            from libs.openrouter import get_free_models
+            free_models = get_free_models()
+            prompt_models.extend([("openrouter", model) for model in free_models])
+
     return prompt_models
 
 
