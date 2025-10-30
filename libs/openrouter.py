@@ -45,18 +45,50 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
         + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
     )
 
-    # Use the specified model or select a random model from the configured OpenRouter models
+    # Load configured models
+    configured_models = [m.strip() for m in user_config["openrouter"]["models"].split(",") if m.strip()]
+    if not configured_models:
+        logging.error("No OpenRouter models configured.")
+        return ""
+
+    # Create client early for model checking
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=user_config["openrouter"]["api_key"],
+    )
+
+    # Select model
     if model:
-        # Use the specified model
-        model = model
+        original_model = model
+        # Always check if model exists on OpenRouter
+        try:
+            all_models_response = client.models.list()
+            all_models = [m.id for m in all_models_response.data]
+            if model not in all_models:
+                # Fallback to random free model from all OpenRouter models
+                free_models = [m for m in all_models if "free" in m.lower()]
+                if free_models:
+                    model = random.choice(free_models)
+                    logging.info(f"Specified model '{original_model}' not found on OpenRouter, falling back to free model: {model}")
+                else:
+                    # No free models, fallback to random configured model
+                    model = random.choice(configured_models)
+                    logging.warning(f"Specified model '{original_model}' not found, no free models available on OpenRouter, using random configured model: {model}")
+            # else model exists, use it
+        except Exception as e:
+            logging.warning(f"Failed to fetch OpenRouter models for validation: {e}. Falling back to configured models.")
+            if model not in configured_models:
+                # Fallback to random free from configured
+                free_models = [m for m in configured_models if "free" in m.lower()]
+                if free_models:
+                    model = random.choice(free_models)
+                    logging.info(f"Specified model '{original_model}' not found, falling back to free configured model: {model}")
+                else:
+                    model = random.choice(configured_models)
+                    logging.warning(f"Specified model '{original_model}' not found, no free configured models available, using random configured model: {model}")
+            # else use the specified model
     else:
-        # Select a random model from the configured OpenRouter models
-        models = [m.strip() for m in user_config["openrouter"]["models"].split(",") if m.strip()]
-        if not models:
-            logging.error("No OpenRouter models configured.")
-            return ""
-        
-        model = random.choice(models)
+        model = random.choice(configured_models)
     
     try:
         client = OpenAI(

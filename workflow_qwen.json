@@ -1,45 +1,26 @@
 {
-  "93": {
+  "3": {
     "inputs": {
-      "text": "jpeg compression",
-      "speak_and_recognation": {
-        "__value__": [
-          false,
-          true
-        ]
-      },
-      "clip": [
-        "126",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
-  },
-  "95": {
-    "inputs": {
-      "seed": 22,
-      "steps": 10,
-      "cfg": 4.5,
+      "seed": 367723847870487,
+      "steps": 8,
+      "cfg": 2.5,
       "sampler_name": "euler",
-      "scheduler": "normal",
+      "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "127",
+        "66",
         0
       ],
       "positive": [
-        "100",
+        "6",
         0
       ],
       "negative": [
-        "93",
+        "7",
         0
       ],
       "latent_image": [
-        "97",
+        "58",
         0
       ]
     },
@@ -48,26 +29,40 @@
       "title": "KSampler"
     }
   },
-  "97": {
+  "6": {
     "inputs": {
-      "width": 1280,
-      "height": 768,
-      "length": 1,
-      "batch_size": 1
+      "text": "Cat sitting at desk, surrounded by taxidermied dinosaurs",
+      "clip": [
+        "38",
+        0
+      ]
     },
-    "class_type": "EmptyHunyuanLatentVideo",
+    "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "EmptyHunyuanLatentVideo"
+      "title": "Positive"
     }
   },
-  "98": {
+  "7": {
+    "inputs": {
+      "text": "text, watermark, deformed Avoid flat colors, poor lighting, and artificial elements. No unrealistic elements, low resolution, or flat colors. Avoid generic objects, poor lighting, and inconsistent styles, blurry, low-quality, distorted faces, overexposed lighting, extra limbs, bad anatomy, low contrast",
+      "clip": [
+        "38",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative"
+    }
+  },
+  "8": {
     "inputs": {
       "samples": [
-        "95",
+        "3",
         0
       ],
       "vae": [
-        "128",
+        "39",
         0
       ]
     },
@@ -76,86 +71,84 @@
       "title": "VAE Decode"
     }
   },
-  "100": {
+  "38": {
     "inputs": {
-      "text": "Terminator riding a push bike",
-      "speak_and_recognation": {
-        "__value__": [
-          false,
-          true
-        ]
-      },
-      "clip": [
-        "126",
-        0
-      ]
-    },
-    "class_type": "CLIPTextEncode",
-    "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
-    }
-  },
-  "102": {
-    "inputs": {
-      "images": [
-        "129",
-        0
-      ]
-    },
-    "class_type": "PreviewImage",
-    "_meta": {
-      "title": "Preview Image"
-    }
-  },
-  "126": {
-    "inputs": {
-      "clip_name": "Qwen2.5-VL-7B-Instruct-Q3_K_M.gguf",
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
       "type": "qwen_image",
-      "device": "cuda:1",
-      "virtual_vram_gb": 6,
-      "use_other_vram": true,
-      "expert_mode_allocations": ""
+      "device": "default"
     },
-    "class_type": "CLIPLoaderGGUFDisTorchMultiGPU",
+    "class_type": "CLIPLoader",
     "_meta": {
-      "title": "CLIPLoaderGGUFDisTorchMultiGPU"
+      "title": "Load CLIP"
     }
   },
-  "127": {
+  "39": {
     "inputs": {
-      "unet_name": "qwen-image-Q2_K.gguf",
-      "device": "cuda:0",
-      "virtual_vram_gb": 6,
-      "use_other_vram": true,
-      "expert_mode_allocations": ""
+      "vae_name": "qwen_image_vae.safetensors"
     },
-    "class_type": "UnetLoaderGGUFDisTorchMultiGPU",
+    "class_type": "VAELoader",
     "_meta": {
-      "title": "UnetLoaderGGUFDisTorchMultiGPU"
+      "title": "Load VAE"
     }
   },
-  "128": {
+  "58": {
     "inputs": {
-      "vae_name": "qwen_image_vae.safetensors",
-      "device": "cuda:1"
+      "width": 720,
+      "height": 1088,
+      "batch_size": 1
     },
-    "class_type": "VAELoaderMultiGPU",
+    "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "VAELoaderMultiGPU"
+      "title": "CR Aspect Ratio"
     }
   },
-  "129": {
+  "60": {
     "inputs": {
-      "offload_model": true,
-      "offload_cache": true,
-      "anything": [
-        "98",
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "8",
         0
       ]
     },
-    "class_type": "VRAMCleanup",
+    "class_type": "SaveImage",
     "_meta": {
-      "title": "🎈VRAM-Cleanup"
+      "title": "Save Image"
+    }
+  },
+  "66": {
+    "inputs": {
+      "shift": 3.1000000000000005,
+      "model": [
+        "73",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingAuraFlow",
+    "_meta": {
+      "title": "ModelSamplingAuraFlow"
+    }
+  },
+  "73": {
+    "inputs": {
+      "lora_name": "Qwen-Image-Lightning-8steps-V1.0.safetensors",
+      "strength_model": 1,
+      "model": [
+        "80",
+        0
+      ]
+    },
+    "class_type": "LoraLoaderModelOnly",
+    "_meta": {
+      "title": "LoraLoaderModelOnly"
+    }
+  },
+  "80": {
+    "inputs": {
+      "unet_name": "qwen-image-Q4_K_S.gguf"
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Load Checkpoint"
     }
   }
 }

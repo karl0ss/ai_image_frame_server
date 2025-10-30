@@ -81,17 +81,20 @@ def get_details_from_png(path):
     try:
         date = datetime.fromtimestamp(os.path.getctime(path)).strftime("%d-%m-%Y")
         with Image.open(path) as img:
-            try:
+            data = json.loads(img.info["prompt"])
+            prompt = data['6']['inputs']['text']
+            if '38' in data and 'unet_name' in data['38']['inputs']:
                 # Flux workflow
-                data = json.loads(img.info["prompt"])
-                prompt = data['6']['inputs']['text']
                 model = data['38']['inputs']['unet_name'].split(".")[0]
-            except KeyError:
+            elif '4' in data and 'ckpt_name' in data['4']['inputs']:
                 # SDXL workflow
-                data = json.loads(img.info["prompt"])
-                prompt = data['6']['inputs']['text']
                 model = data['4']['inputs']['ckpt_name']
-            return {"p":prompt,"m":model,"d":date} or {"p":"","m":"","c":""}
+            elif '80' in data and 'unet_name' in data['80']['inputs']:
+                # Qwen workflow
+                model = data['80']['inputs']['unet_name'].split(".")[0]
+            else:
+                model = "unknown"
+            return {"p":prompt,"m":model,"d":date}
     except Exception as e:
         print(f"Error reading metadata from {path}: {e}")
         return ""
