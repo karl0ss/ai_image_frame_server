@@ -187,24 +187,63 @@ def load_prompt_models_from_config():
     return prompt_models
 
 
+def build_user_content(topic: str = "random") -> str:
+    """Build the user content string for prompt generation, including topic instructions and recent prompts avoidance."""
+    config = load_config()
+    topic_instruction = ""
+    selected_topic = ""
+    secondary_topic_instruction = ""
+    # Unique list of recent prompts
+    recent_prompts = list(set(load_recent_prompts()))
+
+    if topic == "random":
+        topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
+        selected_topic = random.choice(topics) if topics else ""
+    elif topic != "":
+        selected_topic = topic
+    else:
+        # Decide on whether to include a topic (e.g., 30% chance to include)
+        topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
+        if random.random() < 0.3 and topics:
+            selected_topic = random.choice(topics)
+
+    if selected_topic != "":
+        topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
+
+    # Add secondary topic if configured and not empty
+    secondary_topic = config["comfyui"].get("secondary_topic", "").strip()
+    if secondary_topic:
+        secondary_topic_instruction = f" Additionally incorporate the theme of '{secondary_topic}' into the new prompt."
+
+    user_content = (
+        "Can you generate me a really random image idea, Do not exceed 20 words. Use clear language, not poetic metaphors."
+        + topic_instruction
+        + secondary_topic_instruction
+        + "Avoid prompts similar to the following:"
+        + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
+    )
+
+    return user_content
+
+
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
     """Create a prompt using a randomly selected model from OpenWebUI or OpenRouter.
-    
+
     If OpenWebUI fails, it will retry once. If it fails again, it will fallback to OpenRouter.
     """
     prompt_models = load_prompt_models_from_config()
-    
+
     if not prompt_models:
         logging.warning("No prompt generation models configured.")
         return None
-    
+
     # Randomly select a model
     service, model = random.choice(prompt_models)
-    
+
     # Import here to avoid circular imports
     from libs.openwebui import create_prompt_on_openwebui
     from libs.openrouter import create_prompt_on_openrouter
-    
+
     if service == "openwebui":
         try:
             # First attempt with OpenWebUI
@@ -212,13 +251,13 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             result = create_prompt_on_openwebui(base_prompt, topic, model)
             if result:
                 return result
-            
+
             # If first attempt returns None, try again
             logging.warning("First OpenWebUI attempt failed. Retrying...")
             result = create_prompt_on_openwebui(base_prompt, topic, model)
             if result:
                 return result
-            
+
             # If second attempt fails, fallback to OpenRouter
             logging.warning("Second OpenWebUI attempt failed. Falling back to OpenRouter...")
             openrouter_models = [m for m in prompt_models if m[0] == "openrouter"]
@@ -228,7 +267,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             else:
                 logging.error("No OpenRouter models configured for fallback.")
                 return "A colorful abstract composition"  # Default fallback prompt
-                
+
         except Exception as e:
             logging.error(f"Error with OpenWebUI: {e}")
             # Fallback to OpenRouter on exception
@@ -244,7 +283,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             else:
                 logging.error("No OpenRouter models configured for fallback.")
                 return "A colorful abstract composition"  # Default fallback prompt
-    
+
     elif service == "openrouter":
         try:
             # Use OpenRouter
@@ -252,7 +291,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
         except Exception as e:
             logging.error(f"Error with OpenRouter: {e}")
             return "A colorful abstract composition"  # Default fallback prompt
-    
+
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
