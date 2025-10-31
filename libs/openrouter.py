@@ -33,31 +33,40 @@ def get_free_models():
 
 def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str = None) -> str:
     """Sends prompt to OpenRouter and returns the generated response."""
+    # Reload config to get latest values
+    config = load_config()
     # Check if OpenRouter is enabled
-    if user_config["openrouter"].get("enabled", "False").lower() != "true":
+    if config["openrouter"].get("enabled", "False").lower() != "true":
         logging.warning("OpenRouter is not enabled in the configuration.")
         return ""
-    
+
     topic_instruction = ""
     selected_topic = ""
+    secondary_topic_instruction = ""
     # Unique list of recent prompts
     recent_prompts = list(set(load_recent_prompts()))
     if topic == "random":
-        topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
+        topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
         selected_topic = random.choice(topics) if topics else ""
     elif topic != "":
         selected_topic = topic
     else:
         # Decide on whether to include a topic (e.g., 30% chance to include)
-        topics = [t.strip() for t in user_config["comfyui"]["topics"].split(",") if t.strip()]
+        topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
         if random.random() < 0.3 and topics:
             selected_topic = random.choice(topics)
     if selected_topic != "":
         topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
 
+    # Add secondary topic if configured and not empty
+    secondary_topic = config["comfyui"].get("secondary_topic", "").strip()
+    if secondary_topic:
+        secondary_topic_instruction = f" Additionally incorporate the theme of '{secondary_topic}' into the new prompt, in the style of."
+
     user_content = (
         "Can you generate me a really random image idea, Do not exceed 10 words. Use clear language, not poetic metaphors."
         + topic_instruction
+        + secondary_topic_instruction
         + "Avoid prompts similar to the following:"
         + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
     )

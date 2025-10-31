@@ -79,12 +79,19 @@ The application is configured via the `user_config.cfg` file.
 | `[comfyui]` | `width`              | The width of the generated image.                                           | `1568`                |
 | `[comfyui]` | `height`             | The height of the generated image.                                          | `672`                 |
 | `[comfyui]` | `topics`             | A comma-separated list of topics to generate prompts from.                  |                       |
-| `[comfyui]` | `FLUX`               | Enable FLUX models (`True`/`False`).                                        | `False`               |
-| `[comfyui]` | `ONLY_FLUX`          | Only use FLUX models (`True`/`False`).                                      | `False`               |
+| `[comfyui]` | `secondary_topic`    | A secondary topic for prompt generation.                                    |                       |
+| `[comfyui]` | `flux`               | Enable FLUX models (`True`/`False`).                                        | `False`               |
+| `[comfyui]` | `qwen`               | Enable Qwen models (`True`/`False`).                                        | `False`               |
+| `[comfyui]` | `only_flux`          | Only use FLUX models (`True`/`False`).                                      | `False`               |
 | `[comfyui:flux]` | `models`       | A comma-separated list of FLUX models.                                      | `flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf` |
+| `[comfyui:qwen]` | `models`       | A comma-separated list of Qwen models.                                      | `qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf` |
 | `[openwebui]` | `base_url`         | The base URL for OpenWebUI.                                                 | `https://openwebui`   |
 | `[openwebui]` | `api_key`          | The API key for OpenWebUI.                                                  | `sk-`                 |
 | `[openwebui]` | `models`           | A comma-separated list of models for OpenWebUI.                             | `llama3:latest,cogito:14b,gemma3:12b` |
+| `[openrouter]` | `enabled`          | Enable OpenRouter integration (`True`/`False`).                             | `False`               |
+| `[openrouter]` | `api_key`          | The API key for OpenRouter.                                                 |                       |
+| `[openrouter]` | `models`           | A comma-separated list of models for OpenRouter.                            | `mistralai/mistral-7b-instruct:free,google/gemma-7b-it:free,meta-llama/llama-3.1-8b-instruct:free` |
+| `[openrouter]` | `list_all_free_models` | List all free models (`True`/`False`).                                      | `False`               |
 
 ## Usage
 
