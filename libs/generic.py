@@ -5,6 +5,7 @@ import sys
 import time
 import os
 import random
+import shutil
 from PIL import Image
 import nest_asyncio
 import json
@@ -38,10 +39,21 @@ def save_prompt(prompt):
 
 
 def load_config() -> configparser.ConfigParser:
-    """Loads user configuration from ./user_config.cfg."""
+    """Loads user configuration from ./user_config.cfg. If it doesn't exist, copies from user_config.cfg.sample."""
     user_config = configparser.ConfigParser()
+    config_path = "./user_config.cfg"
+    sample_path = "./user_config.cfg.sample"
+
+    if not os.path.exists(config_path):
+        if os.path.exists(sample_path):
+            shutil.copy(sample_path, config_path)
+            logging.info("Configuration file copied from sample.")
+        else:
+            logging.error("Neither user_config.cfg nor user_config.cfg.sample found.")
+            sys.exit(1)
+
     try:
-        user_config.read("./user_config.cfg")
+        user_config.read(config_path)
         logging.debug("Configuration loaded successfully.")
         return user_config
     except KeyError as e:

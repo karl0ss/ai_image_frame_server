@@ -4,12 +4,19 @@ This project is a Flask-based web server designed to generate and display images
 
 ## Features
 
-*   **Web Interface:** A simple web interface to view generated images.
-*   **Image Generation:** Integrates with ComfyUI to generate images based on given prompts and models.
+*   **Web Interface:** A simple web interface to view generated images, manage favourites, and monitor job queues.
+*   **Image Generation:** Integrates with ComfyUI to generate images using SDXL, FLUX, and Qwen models based on given prompts.
+*   **Prompt Generation:** Automatic prompt generation using OpenWebUI or OpenRouter APIs with topic-based theming.
 *   **Scheduled Generation:** Automatically generates new images at a configurable time.
+*   **Favourites System:** Mark and manage favourite images.
+*   **Job Queue Management:** View and cancel running/pending image generation jobs.
+*   **Thumbnail Generation:** Automatic thumbnail creation for generated images.
+*   **Prompt Logging:** Maintains a log of recent prompts to avoid repetition.
+*   **Settings Management:** Web-based configuration editor for all settings.
 *   **Docker Support:** Comes with a `Dockerfile` and `docker-compose.yml` for easy setup and deployment.
-*   **Configurable:** Most options can be configured through a `user_config.cfg` file.
+*   **Configurable:** Most options can be configured through a `user_config.cfg` file or web interface.
 *   **Authentication:** Optional password protection for image creation.
+*   **Version Management:** Uses bump-my-version for version tracking.
 
 ## Prerequisites
 
@@ -33,8 +40,8 @@ This project is a Flask-based web server designed to generate and display images
     ```
 
 3.  **Configure the application:**
-    *   Copy the `user_config.cfg.sample` to `user_config.cfg`.
-    *   Edit `user_config.cfg` with your settings. See the [Configuration](#configuration) section for more details.
+    *   The `user_config.cfg` file will be automatically created from `user_config.cfg.sample` on first run if it doesn't exist.
+    *   Edit `user_config.cfg` with your settings, or use the web-based settings page accessible by clicking the version number in the bottom right corner of the home page. See the [Configuration](#configuration) section for more details.
 
 4.  **Run the application:**
     ```bash
@@ -51,8 +58,8 @@ This project is a Flask-based web server designed to generate and display images
     ```
 
 2.  **Configure the application:**
-    *   Copy the `user_config.cfg.sample` to `user_config.cfg`.
-    *   Edit `user_config.cfg` with your settings. The `comfyui_url` should be the address of your ComfyUI instance, accessible from within the Docker network (e.g., `http://host.docker.internal:8188` or your server's IP).
+    *   The `user_config.cfg` file will be automatically created from `user_config.cfg.sample` on first run if it doesn't exist.
+    *   Edit `user_config.cfg` with your settings, or use the web-based settings page accessible by clicking the version number in the bottom right corner of any page. The `comfyui_url` should be the address of your ComfyUI instance, accessible from within the Docker network (e.g., `http://host.docker.internal:8188` or your server's IP).
 
 3.  **Build and run with Docker Compose:**
     ```bash
@@ -82,7 +89,6 @@ The application is configured via the `user_config.cfg` file.
 | `[comfyui]` | `secondary_topic`    | A secondary topic for prompt generation.                                    |                       |
 | `[comfyui]` | `flux`               | Enable FLUX models (`True`/`False`).                                        | `False`               |
 | `[comfyui]` | `qwen`               | Enable Qwen models (`True`/`False`).                                        | `False`               |
-| `[comfyui]` | `only_flux`          | Only use FLUX models (`True`/`False`).                                      | `False`               |
 | `[comfyui:flux]` | `models`       | A comma-separated list of FLUX models.                                      | `flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf` |
 | `[comfyui:qwen]` | `models`       | A comma-separated list of Qwen models.                                      | `qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf` |
 | `[openwebui]` | `base_url`         | The base URL for OpenWebUI.                                                 | `https://openwebui`   |
@@ -96,14 +102,24 @@ The application is configured via the `user_config.cfg` file.
 ## Usage
 
 *   **Gallery:** Open your browser to `http://<server_ip>:<port>` to see the gallery of generated images.
-*   **Create Image:** Navigate to `/create` to manually trigger image generation.
-
+*   **Create Image:** Navigate to `/create` or `/create_image` to manually trigger image generation with various model options.
+*   **Job Queue:** Monitor and cancel running/pending jobs via the gallery interface.
+*   **API Endpoints:**
+    *   `/api/queue` - Get current job queue details (JSON)
+    *   `/cancel` - Cancel the current running job
+    
 ## Dependencies
 
 *   Flask
 *   comfy_api_simplified
 *   APScheduler
 *   Pillow
+*   tenacity
+*   nest_asyncio
+*   openai
+*   websockets
+*   bump-my-version
+*   openwebui-chat-client
 *   And others, see `requirements.txt`.
 
 ## Contributing
