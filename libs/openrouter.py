@@ -64,7 +64,7 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
         secondary_topic_instruction = f" Additionally incorporate the theme of '{secondary_topic}' into the new prompt, in the style of."
 
     user_content = (
-        "Can you generate me a really random image idea, Do not exceed 10 words. Use clear language, not poetic metaphors."
+        "Can you generate me a really random image idea, Do not exceed 20 words. Use clear language, not poetic metaphors."
         + topic_instruction
         + secondary_topic_instruction
         + "Avoid prompts similar to the following:"
