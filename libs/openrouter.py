@@ -2,7 +2,7 @@ import random
 import logging
 from openai import OpenAI, RateLimitError
 import nest_asyncio
-from libs.generic import load_recent_prompts, load_config
+from libs.generic import load_recent_prompts, load_config, build_user_content
 from libs.openwebui import create_prompt_on_openwebui
 import re
 nest_asyncio.apply()

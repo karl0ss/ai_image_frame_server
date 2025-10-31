@@ -1,7 +1,7 @@
 import random
 import logging
 import nest_asyncio
-from libs.generic import load_recent_prompts, load_config
+from libs.generic import load_recent_prompts, load_config, build_user_content
 import re
 from openwebui_chat_client import OpenWebUIClient
 from datetime import datetime
