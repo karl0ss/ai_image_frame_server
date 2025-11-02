@@ -167,7 +167,7 @@
   "38": {
     "inputs": {
       "unet_name": "flux1-dev-Q4_0.gguf",
-      "device": "cuda:1",
+      "device": "cuda:0",
       "virtual_vram_gb": 0,
       "use_other_vram": true,
       "expert_mode_allocations": ""
