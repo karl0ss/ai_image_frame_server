@@ -16,6 +16,7 @@ def create():
         selected_workflow, model = select_model(image_model)
         topic = request.form.get("topic")
 
+        selected_topic = ""
         if not prompt:
             # Get the prompt model from the form data
             prompt_model = request.form.get("prompt_model") or ""
@@ -28,11 +29,14 @@ def create():
                 elif service == "openrouter":
                     from libs.openrouter import create_prompt_on_openrouter
                     prompt = create_prompt_on_openrouter(user_config["comfyui"]["prompt"], topic, service_model)
+                selected_topic = topic if topic and topic not in ["random"] else ""
             else:
                 # Use a random prompt model
-                prompt = create_prompt_with_random_model(user_config["comfyui"]["prompt"], topic)
+                prompt, selected_topic = create_prompt_with_random_model(user_config["comfyui"]["prompt"], topic)
+        else:
+            selected_topic = topic if topic and topic not in ["random"] else ""
 
-        threading.Thread(target=lambda: create_image(prompt, model)).start()
+        threading.Thread(target=lambda: create_image(prompt, model, selected_topic)).start()
         return redirect(url_for("create_routes.image_queued", prompt=prompt, model=model.split(".")[0]))
 
     # Load all models (SDXL, FLUX, and Qwen)

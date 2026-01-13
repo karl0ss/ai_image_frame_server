@@ -175,13 +175,13 @@ def select_model(model: str) -> tuple[str, str]:
     return selected_workflow, model
 
 
-def create_image(prompt: str | None = None, model: str = "Random Image Model") -> None:
+def create_image(prompt: str | None = None, model: str = "Random Image Model", topic: str = "") -> None:
     """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
 
     if prompt is None:
         # Generate a random prompt using either OpenWebUI or OpenRouter
         from libs.generic import create_prompt_with_random_model
-        prompt = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.")
+        prompt, _ = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.")
         if not prompt:
             logging.error("Failed to generate a prompt.")
             return
@@ -190,7 +190,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model") -
         logging.error("No prompt generated.")
         return
 
-    save_prompt(prompt)
+    save_prompt(prompt, topic)
     selected_workflow, model = select_model(model)
     
     if selected_workflow == "FLUX":

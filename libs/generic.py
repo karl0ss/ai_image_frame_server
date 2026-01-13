@@ -32,8 +32,25 @@ def load_recent_prompts(count=7):
     return recent_prompts
 
 
-def save_prompt(prompt):
-    entry = {"date": datetime.now().strftime("%Y-%m-%d"), "prompt": prompt}
+def load_recent_topics(count=5):
+    recent_topics = []
+
+    try:
+        with open(LOG_FILE, "r") as f:
+            lines = f.readlines()
+            for line in lines[-count:]:
+                data = json.loads(line.strip())
+                topic = data.get("topic", "")
+                if topic:
+                    recent_topics.append(topic)
+    except FileNotFoundError:
+        pass  # No prompts yet
+
+    return recent_topics
+
+
+def save_prompt(prompt, topic=""):
+    entry = {"date": datetime.now().strftime("%Y-%m-%d"), "prompt": prompt, "topic": topic}
     with open(LOG_FILE, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
@@ -199,7 +216,7 @@ def load_prompt_models_from_config():
     return prompt_models
 
 
-def build_user_content(topic: str = "random") -> str:
+def build_user_content(topic: str = "random") -> tuple[str, str]:
     """Build the user content string for prompt generation, including topic instructions and recent prompts avoidance."""
     config = load_config()
     topic_instruction = ""
@@ -207,17 +224,25 @@ def build_user_content(topic: str = "random") -> str:
     secondary_topic_instruction = ""
     # Unique list of recent prompts
     recent_prompts = list(set(load_recent_prompts()))
+    recent_topics = load_recent_topics()
 
     if topic == "random":
         topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
-        selected_topic = random.choice(topics) if topics else ""
+        available_topics = [t for t in topics if t not in recent_topics]
+        if available_topics:
+            selected_topic = random.choice(available_topics)
+        elif topics:
+            selected_topic = random.choice(topics)  # Fallback if all recent
     elif topic != "":
         selected_topic = topic
     else:
         # Decide on whether to include a topic (e.g., 30% chance to include)
         topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
-        if random.random() < 0.3 and topics:
-            selected_topic = random.choice(topics)
+        available_topics = [t for t in topics if t not in recent_topics]
+        if random.random() < 0.3 and available_topics:
+            selected_topic = random.choice(available_topics)
+        elif random.random() < 0.3 and topics:
+            selected_topic = random.choice(topics)  # Fallback
 
     if selected_topic != "":
         topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
@@ -235,7 +260,7 @@ def build_user_content(topic: str = "random") -> str:
         + "\n".join(f"{i+1}. {p}" for i, p in enumerate(recent_prompts))
     )
 
-    return user_content
+    return user_content, selected_topic
 
 
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
@@ -247,7 +272,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
 
     if not prompt_models:
         logging.warning("No prompt generation models configured.")
-        return None
+        return None, ""
 
     # Randomly select a model
     service, model = random.choice(prompt_models)
@@ -260,25 +285,27 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
         try:
             # First attempt with OpenWebUI
             logging.info(f"Attempting to generate prompt with OpenWebUI using model: {model}")
-            result = create_prompt_on_openwebui(base_prompt, topic, model)
+            user_content, selected_topic = build_user_content(topic)
+            full_prompt = base_prompt + "\n\n" + user_content
+            result = create_prompt_on_openwebui(full_prompt, "", model)  # topic already in user_content
             if result:
-                return result
+                return result, selected_topic
 
             # If first attempt returns None, try again
             logging.warning("First OpenWebUI attempt failed. Retrying...")
-            result = create_prompt_on_openwebui(base_prompt, topic, model)
+            result = create_prompt_on_openwebui(full_prompt, "", model)
             if result:
-                return result
+                return result, selected_topic
 
             # If second attempt fails, fallback to OpenRouter
             logging.warning("Second OpenWebUI attempt failed. Falling back to OpenRouter...")
             openrouter_models = [m for m in prompt_models if m[0] == "openrouter"]
             if openrouter_models:
                 _, openrouter_model = random.choice(openrouter_models)
-                return create_prompt_on_openrouter(base_prompt, topic, openrouter_model)
+                return create_prompt_on_openrouter(full_prompt, "", openrouter_model), selected_topic
             else:
                 logging.error("No OpenRouter models configured for fallback.")
-                return "A colorful abstract composition"  # Default fallback prompt
+                return "A colorful abstract composition", ""  # Default fallback prompt
 
         except Exception as e:
             logging.error(f"Error with OpenWebUI: {e}")
@@ -287,22 +314,26 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             openrouter_models = [m for m in prompt_models if m[0] == "openrouter"]
             if openrouter_models:
                 _, openrouter_model = random.choice(openrouter_models)
+                user_content, selected_topic = build_user_content(topic)
+                full_prompt = base_prompt + "\n\n" + user_content
                 try:
-                    return create_prompt_on_openrouter(base_prompt, topic, openrouter_model)
+                    return create_prompt_on_openrouter(full_prompt, "", openrouter_model), selected_topic
                 except Exception as e2:
                     logging.error(f"Error with OpenRouter fallback: {e2}")
-                    return "A colorful abstract composition"  # Default fallback prompt
+                    return "A colorful abstract composition", ""  # Default fallback prompt
             else:
                 logging.error("No OpenRouter models configured for fallback.")
-                return "A colorful abstract composition"  # Default fallback prompt
+                return "A colorful abstract composition", ""  # Default fallback prompt
 
     elif service == "openrouter":
         try:
             # Use OpenRouter
-            return create_prompt_on_openrouter(base_prompt, topic, model)
+            user_content, selected_topic = build_user_content(topic)
+            full_prompt = base_prompt + "\n\n" + user_content
+            return create_prompt_on_openrouter(full_prompt, "", model), selected_topic
         except Exception as e:
             logging.error(f"Error with OpenRouter: {e}")
-            return "A colorful abstract composition"  # Default fallback prompt
+            return "A colorful abstract composition", ""  # Default fallback prompt
 
 
 user_config = load_config()

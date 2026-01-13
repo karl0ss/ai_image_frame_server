@@ -40,7 +40,7 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
         logging.warning("OpenRouter is not enabled in the configuration.")
         return ""
 
-    user_content = build_user_content(topic)
+    user_content, _ = build_user_content(topic)
 
     # Load configured models
     configured_models = [m.strip() for m in user_config["openrouter"]["models"].split(",") if m.strip()]

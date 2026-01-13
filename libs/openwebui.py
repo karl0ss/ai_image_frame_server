@@ -19,7 +19,7 @@ def create_prompt_on_openwebui(prompt: str, topic: str = "random", model: str = 
     """Sends prompt to OpenWebui and returns the generated response."""
     # Reload config to get latest values
     config = load_config()
-    user_content = build_user_content(topic)
+    user_content, _ = build_user_content(topic)
 
     if model:
         # Use the specified model
