@@ -256,6 +256,20 @@
                 {% endfor %}
             </optgroup>
             {% endif %}
+            {% if ollama_models %}
+            <optgroup label="Ollama Cloud">
+                {% for m in ollama_models %}
+                <option value="ollama:{{ m }}">{{ m }}</option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
+            {% if ollama_cloud_models %}
+            <optgroup label="Ollama Cloud (All)">
+                {% for m in ollama_cloud_models %}
+                <option value="ollama:{{ m }}">{{ m }}</option>
+                {% endfor %}
+            </optgroup>
+            {% endif %}
         </select>
     </div>
     

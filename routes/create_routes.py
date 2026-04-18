@@ -2,7 +2,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, sessio
 import threading
 from libs.comfyui import create_image, select_model, get_available_models, get_queue_count
 from libs.openwebui import create_prompt_on_openwebui
-from libs.generic import load_models_from_config, load_topics_from_config, load_openrouter_models_from_config, load_openwebui_models_from_config, create_prompt_with_random_model
+from libs.generic import load_models_from_config, load_topics_from_config, load_openrouter_models_from_config, load_openwebui_models_from_config, load_ollama_models_from_config, create_prompt_with_random_model
 import os
 
 bp = Blueprint("create_routes", __name__)
@@ -29,6 +29,9 @@ def create():
                 elif service == "openrouter":
                     from libs.openrouter import create_prompt_on_openrouter
                     prompt = create_prompt_on_openrouter(user_config["comfyui"]["prompt"], topic, service_model)
+                elif service == "ollama":
+                    from libs.ollama import create_prompt_on_ollama
+                    prompt = create_prompt_on_ollama(user_config["comfyui"]["prompt"], topic, service_model)
                 selected_topic = topic if topic and topic not in ["random"] else ""
             else:
                 # Use a random prompt model
@@ -43,6 +46,7 @@ def create():
     sdxl_models, flux_models, qwen_models = load_models_from_config()
     openwebui_models = load_openwebui_models_from_config()
     openrouter_models, openrouter_free_models = load_openrouter_models_from_config()
+    ollama_models, ollama_cloud_models = load_ollama_models_from_config()
 
     queue_count = get_queue_count()
     return render_template("create_image.html",
@@ -52,6 +56,8 @@ def create():
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
                          openrouter_free_models=openrouter_free_models,
+                         ollama_models=ollama_models,
+                         ollama_cloud_models=ollama_cloud_models,
                          topics=load_topics_from_config(),
                          queue_count=queue_count)
 
@@ -74,15 +80,18 @@ def create_image_page():
     sdxl_models, flux_models, qwen_models = load_models_from_config()
     openwebui_models = load_openwebui_models_from_config()
     openrouter_models, openrouter_free_models = load_openrouter_models_from_config()
+    ollama_models, ollama_cloud_models = load_ollama_models_from_config()
 
     queue_count = get_queue_count()
     return render_template("create_image.html",
-                         sdxl_models=sdxl_models,
+                         sdxx_models=sdxl_models,
                          flux_models=flux_models,
                          qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
                          openrouter_models=openrouter_models,
                          openrouter_free_models=openrouter_free_models,
+                         ollama_models=ollama_models,
+                         ollama_cloud_models=ollama_cloud_models,
                          topics=load_topics_from_config(),
                          queue_count=queue_count)
 

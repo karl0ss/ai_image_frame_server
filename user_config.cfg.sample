@@ -35,3 +35,9 @@ enabled = False
 api_key =
 models = mistralai/mistral-7b-instruct:free,google/gemma-7b-it:free,meta-llama/llama-3.1-8b-instruct:free
 list_all_free_models = False
+
+[ollama]
+enabled = False
+api_key =
+models = llama3.1,phi3
+list_all_cloud_models = False

@@ -193,8 +193,20 @@ def load_openwebui_models_from_config():
         return sorted([model.strip() for model in models if model.strip()], key=str.lower)
     return []
 
+def load_ollama_models_from_config():
+    config = load_config()
+    if config["ollama"].get("enabled", "False").lower() == "true" and "models" in config["ollama"]:
+        models = config["ollama"]["models"].split(",")
+        configured_models = sorted([model.strip() for model in models if model.strip()], key=str.lower)
+        cloud_models = []
+        if config["ollama"].get("list_all_cloud_models", "False").lower() == "true":
+            from libs.ollama import get_cloud_models
+            cloud_models = get_cloud_models()
+        return configured_models, cloud_models
+    return [], []
+
 def load_prompt_models_from_config():
-    """Load and return a list of available prompt generation models (both OpenWebUI and OpenRouter)."""
+    """Load and return a list of available prompt generation models (OpenWebUI, OpenRouter, and Ollama)."""
     config = load_config()
     prompt_models = []
 
@@ -212,6 +224,16 @@ def load_prompt_models_from_config():
             from libs.openrouter import get_free_models
             free_models = get_free_models()
             prompt_models.extend([("openrouter", model) for model in free_models])
+
+    # Add Ollama Cloud models if enabled and configured
+    if config["ollama"].get("enabled", "False").lower() == "true" and "models" in config["ollama"]:
+        ollama_models = config["ollama"]["models"].split(",")
+        prompt_models.extend([("ollama", model.strip()) for model in ollama_models if model.strip()])
+        # Add all cloud models if flag is set
+        if config["ollama"].get("list_all_cloud_models", "False").lower() == "true":
+            from libs.ollama import get_cloud_models
+            cloud_models = get_cloud_models()
+            prompt_models.extend([("ollama", model) for model in cloud_models])
 
     return prompt_models
 
@@ -264,9 +286,9 @@ def build_user_content(topic: str = "random") -> tuple[str, str]:
 
 
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
-    """Create a prompt using a randomly selected model from OpenWebUI or OpenRouter.
+    """Create a prompt using a randomly selected model from OpenWebUI, OpenRouter, or Ollama.
 
-    If OpenWebUI fails, it will retry once. If it fails again, it will fallback to OpenRouter.
+    If OpenWebUI fails, it will retry once. If it fails again, it will fallback to another service.
     """
     prompt_models = load_prompt_models_from_config()
 
@@ -280,60 +302,63 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
     # Import here to avoid circular imports
     from libs.openwebui import create_prompt_on_openwebui
     from libs.openrouter import create_prompt_on_openrouter
+    from libs.ollama import create_prompt_on_ollama
+
+    def _fallback_to_other_services(excluded_service, topic, base_prompt):
+        """Try fallback to any available service other than the excluded one."""
+        other_models = [m for m in prompt_models if m[0] != excluded_service]
+        if other_models:
+            fb_service, fb_model = random.choice(other_models)
+            user_content, selected_topic = build_user_content(topic)
+            full_prompt = base_prompt + "\n\n" + user_content
+            if fb_service == "openrouter":
+                return create_prompt_on_openrouter(full_prompt, "", fb_model), selected_topic
+            elif fb_service == "ollama":
+                return create_prompt_on_ollama(full_prompt, "", fb_model), selected_topic
+            elif fb_service == "openwebui":
+                return create_prompt_on_openwebui(full_prompt, "", fb_model), selected_topic
+        logging.error(f"No fallback models available (excluded: {excluded_service}).")
+        return "A colorful abstract composition", ""
 
     if service == "openwebui":
         try:
-            # First attempt with OpenWebUI
             logging.info(f"Attempting to generate prompt with OpenWebUI using model: {model}")
             user_content, selected_topic = build_user_content(topic)
             full_prompt = base_prompt + "\n\n" + user_content
-            result = create_prompt_on_openwebui(full_prompt, "", model)  # topic already in user_content
+            result = create_prompt_on_openwebui(full_prompt, "", model)
             if result:
                 return result, selected_topic
 
-            # If first attempt returns None, try again
             logging.warning("First OpenWebUI attempt failed. Retrying...")
             result = create_prompt_on_openwebui(full_prompt, "", model)
             if result:
                 return result, selected_topic
 
-            # If second attempt fails, fallback to OpenRouter
-            logging.warning("Second OpenWebUI attempt failed. Falling back to OpenRouter...")
-            openrouter_models = [m for m in prompt_models if m[0] == "openrouter"]
-            if openrouter_models:
-                _, openrouter_model = random.choice(openrouter_models)
-                return create_prompt_on_openrouter(full_prompt, "", openrouter_model), selected_topic
-            else:
-                logging.error("No OpenRouter models configured for fallback.")
-                return "A colorful abstract composition", ""  # Default fallback prompt
+            logging.warning("Second OpenWebUI attempt failed. Falling back to other services...")
+            return _fallback_to_other_services("openwebui", topic, base_prompt)
 
         except Exception as e:
             logging.error(f"Error with OpenWebUI: {e}")
-            # Fallback to OpenRouter on exception
-            logging.warning("OpenWebUI exception. Falling back to OpenRouter...")
-            openrouter_models = [m for m in prompt_models if m[0] == "openrouter"]
-            if openrouter_models:
-                _, openrouter_model = random.choice(openrouter_models)
-                user_content, selected_topic = build_user_content(topic)
-                full_prompt = base_prompt + "\n\n" + user_content
-                try:
-                    return create_prompt_on_openrouter(full_prompt, "", openrouter_model), selected_topic
-                except Exception as e2:
-                    logging.error(f"Error with OpenRouter fallback: {e2}")
-                    return "A colorful abstract composition", ""  # Default fallback prompt
-            else:
-                logging.error("No OpenRouter models configured for fallback.")
-                return "A colorful abstract composition", ""  # Default fallback prompt
+            logging.warning("OpenWebUI exception. Falling back to other services...")
+            return _fallback_to_other_services("openwebui", topic, base_prompt)
 
     elif service == "openrouter":
         try:
-            # Use OpenRouter
             user_content, selected_topic = build_user_content(topic)
             full_prompt = base_prompt + "\n\n" + user_content
             return create_prompt_on_openrouter(full_prompt, "", model), selected_topic
         except Exception as e:
             logging.error(f"Error with OpenRouter: {e}")
-            return "A colorful abstract composition", ""  # Default fallback prompt
+            return _fallback_to_other_services("openrouter", topic, base_prompt)
+
+    elif service == "ollama":
+        try:
+            user_content, selected_topic = build_user_content(topic)
+            full_prompt = base_prompt + "\n\n" + user_content
+            return create_prompt_on_ollama(full_prompt, "", model), selected_topic
+        except Exception as e:
+            logging.error(f"Error with Ollama: {e}")
+            return _fallback_to_other_services("ollama", topic, base_prompt)
 
 
 user_config = load_config()
