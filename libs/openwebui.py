@@ -1,7 +1,6 @@
 import random
 import logging
-from libs.generic import load_recent_prompts, load_config, build_user_content
-import re
+from libs.generic import load_config, build_user_content, extract_prompt
 from openwebui_chat_client import OpenWebUIClient
 from datetime import datetime
 
@@ -10,65 +9,36 @@ logger = logging.getLogger(__name__)
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
 
-def create_prompt_on_openwebui(prompt: str, topic: str = "random", model: str = None) -> str:
-    """Sends prompt to OpenWebui and returns the generated response."""
-    # Reload config to get latest values
+def create_prompt_on_openwebui(base_prompt: str, topic: str = "random", model: str = None) -> str:
+    """Sends prompt to OpenWebUI and returns the generated response."""
     config = load_config()
     user_content, _ = build_user_content(topic)
-
-    if model:
-        # Use the specified model
-        model = model
+    if base_prompt:
+        full_content = f"{base_prompt}\n\n{user_content}"
     else:
-        # Select a random model
-        model = random.choice(user_config["openwebui"]["models"].split(",")).strip()
+        full_content = user_content
 
-    # Create OpenWebUI client
+    model = model or random.choice(config["openwebui"]["models"].split(",")).strip()
+
     client = OpenWebUIClient(
-        base_url=user_config["openwebui"]["base_url"],
-        token=user_config["openwebui"]["api_key"],
+        base_url=config["openwebui"]["base_url"],
+        token=config["openwebui"]["api_key"],
         default_model_id=model
     )
 
-    # Prepare messages for the chat
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are a prompt generator for Stable Diffusion. "
-                "Generate a detailed and imaginative prompt with a strong visual theme. "
-                "Focus on lighting, atmosphere, and artistic style. "
-                "Keep the prompt concise, no extra commentary or formatting."
-            ),
-        },
-        {
-            "role": "user",
-            "content": user_content,
-        },
-    ]
-
-    # Send the chat request
     try:
         result = client.chat(
-            question=user_content,
+            question=full_content,
             chat_title=datetime.now().strftime("%Y-%m-%d %H:%M"),
             folder_name="ai-frame-image-server"
         )
 
         if result:
-            prompt = result["response"].strip('"')
+            prompt = extract_prompt(result["response"])
+            return prompt
         else:
-            # Return None if the request fails
-            logging.warning(f"OpenWebUI request failed with model: {model}")
+            logger.warning("OpenWebUI request failed with model: %s", model)
             return None
     except Exception as e:
-        logging.error(f"Error in OpenWebUI request with model {model}: {e}")
+        logger.error("Error in OpenWebUI request with model %s: %s", model, e)
         return None
-
-    match = re.search(r'"([^"]+)"', prompt)
-    if not match:
-        match = re.search(r":\s*\n*\s*(.+)", prompt) 
-    if match:
-        prompt = match.group(1)
-    logging.debug(prompt)
-    return prompt

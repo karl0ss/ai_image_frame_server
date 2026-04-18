@@ -1,17 +1,42 @@
-import subprocess
 import configparser
+import hashlib
+import hmac
+import json
 import logging
-import sys
-import time
 import os
 import random
+import re
 import shutil
-from PIL import Image
-import json
+import subprocess
+import sys
+import time
 from datetime import datetime
+
+from PIL import Image
+
 from libs.create_thumbnail import generate_thumbnail
 
+logger = logging.getLogger(__name__)
+
 LOG_FILE = "./prompts_log.jsonl"
+
+SYSTEM_PROMPT = (
+    "You are a prompt generator for Stable Diffusion. "
+    "Generate a detailed and imaginative prompt with a strong visual theme. "
+    "Focus on lighting, atmosphere, and artistic style. "
+    "Keep the prompt concise, no extra commentary or formatting."
+)
+
+
+def extract_prompt(text: str) -> str:
+    """Extract a prompt from LLM response text by stripping quotes and extracting content."""
+    text = text.strip('"')
+    match = re.search(r'"([^"]+)"', text)
+    if not match:
+        match = re.search(r":\s*\n*\s*(.+)", text)
+    if match:
+        text = match.group(1)
+    return text.strip()
 
 def load_recent_prompts(count=7):
     recent_prompts = []
@@ -60,6 +85,17 @@ def get_bool(config: configparser.ConfigParser, section: str, key: str, default:
     return value == "true"
 
 
+def hash_password(password: str) -> str:
+    """Hash a password using SHA-256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    """Verify a password against a stored hash using constant-time comparison."""
+    input_hash = hash_password(password)
+    return hmac.compare_digest(input_hash, stored_hash)
+
+
 def load_config() -> configparser.ConfigParser:
     """Loads user configuration from ./user_config.cfg. If it doesn't exist, copies from user_config.cfg.sample."""
     user_config = configparser.ConfigParser()
@@ -83,32 +119,34 @@ def load_config() -> configparser.ConfigParser:
         sys.exit(1)
 
 
-def rename_image() -> str | None:
+def rename_image(config=None, fav_file=None) -> str | None:
     """Renames 'image.png' in the output folder to a timestamped filename if it exists."""
-    old_path = os.path.join(user_config["comfyui"]["output_dir"], "image.png")
+    cfg = config or user_config
+    fav_path = fav_file or favourites_file
+    output_dir = cfg["comfyui"]["output_dir"]
+    old_path = os.path.join(output_dir, "image.png")
 
     if os.path.exists(old_path):
         new_filename = f"{str(time.time())}.png"
-        new_path = os.path.join(user_config["comfyui"]["output_dir"], new_filename)
+        new_path = os.path.join(output_dir, new_filename)
 
-        # Check if image.png is a favourite and update atomically
-        temp_favourites_path = favourites_file + ".tmp"
-        if os.path.exists(favourites_file):
-            with open(favourites_file, 'r') as f:
+        temp_favourites_path = fav_path + ".tmp"
+        if os.path.exists(fav_path):
+            with open(fav_path, 'r') as f:
                 favourites = json.load(f)
             if "image.png" in favourites:
                 favourites.remove("image.png")
                 favourites.append(new_filename)
                 with open(temp_favourites_path, 'w') as f:
                     json.dump(favourites, f)
-                os.replace(temp_favourites_path, favourites_file)
+                os.replace(temp_favourites_path, fav_path)
 
         os.rename(old_path, new_path)
         generate_thumbnail(new_path)
-        print(f"Renamed 'image.png' to '{new_filename}'")
+        logger.info(f"Renamed 'image.png' to '{new_filename}'")
         return new_filename
     else:
-        print("No image.png found.")
+        logger.info("No image.png found.")
         return None
 
 
@@ -135,20 +173,17 @@ def get_details_from_png(path):
             data = json.loads(img.info["prompt"])
             prompt = data['6']['inputs']['text']
             if '38' in data and 'unet_name' in data['38']['inputs']:
-                # Flux workflow
                 model = data['38']['inputs']['unet_name'].split(".")[0]
             elif '4' in data and 'ckpt_name' in data['4']['inputs']:
-                # SDXL workflow
                 model = data['4']['inputs']['ckpt_name']
             elif '80' in data and 'unet_name' in data['80']['inputs']:
-                # Qwen workflow
                 model = data['80']['inputs']['unet_name'].split(".")[0]
             else:
                 model = "unknown"
-            return {"p":prompt,"m":model,"d":date}
+            return {"p": prompt, "m": model, "d": date}
     except Exception as e:
-        print(f"Error reading metadata from {path}: {e}")
-        return ""
+        logger.warning(f"Error reading metadata from {path}: {e}")
+        return {"p": "", "m": "", "d": ""}
 
 def get_current_version():
     try:
@@ -163,14 +198,13 @@ def get_current_version():
         version = result.stdout.strip()
         return version
     except subprocess.CalledProcessError as e:
-        print("Error running bump-my-version:", e)
+        logger.error("Error running bump-my-version: %s", e)
         return "unknown"
 
 def load_models_from_config():
     config = load_config()
     
-    # Only load FLUX models if FLUX feature is enabled
-    use_flux = config["comfyui"].get("flux", "False").lower() == "true"
+    use_flux = get_bool(config, "comfyui", "flux", False)
     if use_flux and "comfyui:flux" in config and "models" in config["comfyui:flux"]:
         flux_models = config["comfyui:flux"]["models"].split(",")
     else:
@@ -178,8 +212,7 @@ def load_models_from_config():
     
     sdxl_models = config["comfyui"]["models"].split(",")
     
-    # Only load Qwen models if Qwen feature is enabled
-    use_qwen = config["comfyui"].get("qwen", "False").lower() == "true"
+    use_qwen = get_bool(config, "comfyui", "qwen", False)
     if use_qwen and "comfyui:qwen" in config and "models" in config["comfyui:qwen"]:
         qwen_models = config["comfyui:qwen"]["models"].split(",")
     else:
@@ -199,11 +232,11 @@ def load_topics_from_config():
 
 def load_openrouter_models_from_config():
     config = load_config()
-    if config["openrouter"].get("enabled", "False").lower() == "true":
+    if get_bool(config, "openrouter", "enabled", False):
         models = config["openrouter"]["models"].split(",")
         configured_models = sorted([model.strip() for model in models if model.strip()], key=str.lower)
         free_models = []
-        if config["openrouter"].get("list_all_free_models", "False").lower() == "true":
+        if get_bool(config, "openrouter", "list_all_free_models", False):
             from libs.openrouter import get_free_models
             free_models = get_free_models()
         return configured_models, free_models
@@ -218,11 +251,11 @@ def load_openwebui_models_from_config():
 
 def load_ollama_models_from_config():
     config = load_config()
-    if config["ollama"].get("enabled", "False").lower() == "true" and "models" in config["ollama"]:
+    if get_bool(config, "ollama", "enabled", False) and "models" in config["ollama"]:
         models = config["ollama"]["models"].split(",")
         configured_models = sorted([model.strip() for model in models if model.strip()], key=str.lower)
         cloud_models = []
-        if config["ollama"].get("list_all_cloud_models", "False").lower() == "true":
+        if get_bool(config, "ollama", "list_all_cloud_models", False):
             from libs.ollama import get_cloud_models
             cloud_models = get_cloud_models()
         return configured_models, cloud_models
@@ -239,21 +272,18 @@ def load_prompt_models_from_config():
         prompt_models.extend([("openwebui", model.strip()) for model in openwebui_models if model.strip()])
 
     # Add OpenRouter models if enabled and configured
-    if config["openrouter"].get("enabled", "False").lower() == "true" and "models" in config["openrouter"]:
+    if get_bool(config, "openrouter", "enabled", False) and "models" in config["openrouter"]:
         openrouter_models = config["openrouter"]["models"].split(",")
         prompt_models.extend([("openrouter", model.strip()) for model in openrouter_models if model.strip()])
-        # Add free models if flag is set
-        if config["openrouter"].get("list_all_free_models", "False").lower() == "true":
+        if get_bool(config, "openrouter", "list_all_free_models", False):
             from libs.openrouter import get_free_models
             free_models = get_free_models()
             prompt_models.extend([("openrouter", model) for model in free_models])
 
-    # Add Ollama Cloud models if enabled and configured
-    if config["ollama"].get("enabled", "False").lower() == "true" and "models" in config["ollama"]:
+    if get_bool(config, "ollama", "enabled", False) and "models" in config["ollama"]:
         ollama_models = config["ollama"]["models"].split(",")
         prompt_models.extend([("ollama", model.strip()) for model in ollama_models if model.strip()])
-        # Add all cloud models if flag is set
-        if config["ollama"].get("list_all_cloud_models", "False").lower() == "true":
+        if get_bool(config, "ollama", "list_all_cloud_models", False):
             from libs.ollama import get_cloud_models
             cloud_models = get_cloud_models()
             prompt_models.extend([("ollama", model) for model in cloud_models])

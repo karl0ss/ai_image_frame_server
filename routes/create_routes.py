@@ -1,9 +1,7 @@
 from flask import Blueprint, request, render_template, redirect, url_for, session
 import threading
 from libs.comfyui import create_image, select_model, get_available_models, get_queue_count
-from libs.openwebui import create_prompt_on_openwebui
-from libs.generic import load_models_from_config, load_topics_from_config, load_openrouter_models_from_config, load_openwebui_models_from_config, load_ollama_models_from_config, create_prompt_with_random_model
-import os
+from libs.generic import load_models_from_config, load_topics_from_config, load_openrouter_models_from_config, load_openwebui_models_from_config, load_ollama_models_from_config, create_prompt_with_random_model, get_bool
 
 bp = Blueprint("create_routes", __name__)
 user_config = None  # will be set in init_app
@@ -80,7 +78,7 @@ def image_queued():
 
 @bp.route("/create_image", methods=["GET"])
 def create_image_page():
-    if user_config["frame"]["create_requires_auth"] == "True" and not session.get("authenticated"):
+    if get_bool(user_config, "frame", "create_requires_auth", False) and not session.get("authenticated"):
         return redirect(url_for("auth_routes.login", next=request.path))
     
     models_and_topics = _load_models_and_topics()

@@ -1,7 +1,6 @@
 import random
 import logging
 import os
-import json
 import time
 import requests
 from typing import Optional
@@ -13,9 +12,8 @@ from tenacity import (
     before_log,
     retry_if_exception_type,
 )
-from libs.generic import rename_image, load_config, save_prompt
+from libs.generic import rename_image, load_config, save_prompt, get_bool
 from libs.create_thumbnail import generate_thumbnail
-from libs.openwebui import create_prompt_on_openwebui
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +38,8 @@ def get_available_models() -> list:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json()
-            # Get SDXL models from CheckpointLoaderSimple
             general = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [[]])[0]
-            # Get FLUX models from UnetLoaderGGUF
             flux = data.get("UnetLoaderGGUF", {}).get("input", {}).get("required", {}).get("unet_name", [[]])[0]
-            # Combine both lists, handling cases where one might be missing
             all_models = []
             if isinstance(general, list):
                 all_models.extend(general)
@@ -54,17 +49,17 @@ def get_available_models() -> list:
             AVAILABLE_MODELS_CACHE_TIME = time.time()
             return all_models
         else:
-            print(f"Failed to fetch models: {response.status_code}")
+            logger.warning("Failed to fetch models: %s", response.status_code)
             return []
     except Exception as e:
-        print(f"Error fetching models: {e}")
+        logger.error("Error fetching models: %s", e)
         if AVAILABLE_MODELS_CACHE is not None:
             return AVAILABLE_MODELS_CACHE
         return []
 
 
-def cancel_current_job() -> list:
-    """Fetches available models from ComfyUI."""
+def cancel_current_job() -> str:
+    """Cancels the current running job on ComfyUI."""
     url = user_config["comfyui"]["comfyui_url"] + "/interrupt"
     response = requests.post(url)
     if response.status_code == 200:
@@ -73,7 +68,6 @@ def cancel_current_job() -> list:
         return "Failed to cancel"
 
 
-# Define the retry logic using Tenacity
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_fixed(5),
@@ -98,7 +92,6 @@ def generate_image(
         api = ComfyApiWrapper(user_config["comfyui"]["comfyui_url"])
         wf = ComfyWorkflowWrapper(workflow_path)
 
-        # Set workflow parameters
         wf.set_node_param(seed_node, seed_param, random.getrandbits(32))
         wf.set_node_param(prompt_node, "text", comfy_prompt)
         wf.set_node_param(save_node, save_param, file_name)
@@ -123,8 +116,7 @@ def generate_image(
 
         wf.set_node_param(model_node, model_param, model)
 
-        # Generate image
-        logging.debug(f"Generating image: {file_name}")
+        logger.debug("Generating image: %s", file_name)
         results = api.queue_and_wait_images(wf, save_node)
         rename_image()
 
@@ -136,19 +128,18 @@ def generate_image(
                 f.write(image_data)
             generate_thumbnail(output_path)
 
-        logging.debug(f"Image generated successfully for UID: {file_name}")
+        logger.debug("Image generated successfully for UID: %s", file_name)
 
     except Exception as e:
-        logging.error(f"Failed to generate image for UID: {file_name}. Error: {e}")
+        logger.error("Failed to generate image for UID: %s. Error: %s", file_name, e)
         raise
 
 def select_model(model: str) -> tuple[str, str]:
-    use_flux = json.loads(user_config["comfyui"].get("FLUX", "false").lower())
-    only_flux = json.loads(user_config["comfyui"].get("ONLY_FLUX", "false").lower())
-    use_qwen = json.loads(user_config["comfyui"].get("Qwen", "false").lower())
+    use_flux = get_bool(user_config, "comfyui", "flux", False)
+    only_flux = get_bool(user_config, "comfyui", "only_flux", False)
+    use_qwen = get_bool(user_config, "comfyui", "qwen", False)
 
     if model == "Random Image Model":
-        # Create a list of available workflows based on configuration
         available_workflows = []
         if not only_flux:
             available_workflows.append("SDXL")
@@ -157,11 +148,9 @@ def select_model(model: str) -> tuple[str, str]:
         if use_qwen:
             available_workflows.append("Qwen")
         
-        # If no workflows are available, default to SDXL
         if not available_workflows:
             available_workflows.append("SDXL")
         
-        # Randomly select a workflow
         selected_workflow = random.choice(available_workflows)
     elif "flux" in model.lower():
         selected_workflow = "FLUX"
@@ -175,16 +164,14 @@ def select_model(model: str) -> tuple[str, str]:
             valid_models = user_config["comfyui:flux"]["models"].split(",")
         elif selected_workflow == "Qwen":
             valid_models = user_config["comfyui:qwen"]["models"].split(",")
-        else:  # SDXL
+        else:
             available_model_list = user_config["comfyui"]["models"].split(",")
             valid_models = list(set(get_available_models()) & set(available_model_list))
-            # If no valid models found, fall back to configured models
             if not valid_models:
                 valid_models = available_model_list
-        # Ensure we have at least one model to choose from
         if not valid_models:
-            # Fallback to a default model
-            valid_models = ["zavychromaxl_v100.safetensors"]
+            fallback_models = user_config["comfyui"]["models"].split(",")
+            valid_models = [fallback_models[0].strip()] if fallback_models else ["sd_xl_base_1.0.safetensors"]
         model = random.choice(valid_models)
 
     return selected_workflow, model
@@ -194,15 +181,16 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
     """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
 
     if prompt is None:
-        # Generate a random prompt using either OpenWebUI or OpenRouter
         from libs.generic import create_prompt_with_random_model
-        prompt, _ = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.")
+        config = load_config()
+        base_prompt = config["comfyui"].get("prompt", "Generate a random detailed prompt for stable diffusion.")
+        prompt, _ = create_prompt_with_random_model(base_prompt)
         if not prompt:
-            logging.error("Failed to generate a prompt.")
+            logger.error("Failed to generate a prompt.")
             return
 
     if not prompt:
-        logging.error("No prompt generated.")
+        logger.error("No prompt generated.")
         return
 
     save_prompt(prompt, topic)
@@ -236,10 +224,10 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
             model_param="ckpt_name",
             model=model
         )
-    else:  # SDXL
+    else:
         generate_image("image", comfy_prompt=prompt, model=model)
 
-    logging.info(f"{selected_workflow} generation started with prompt: {prompt}")
+    logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
 
 def get_queue_count() -> int:
     """Fetches the current queue count from ComfyUI (pending + running jobs)."""
@@ -252,7 +240,7 @@ def get_queue_count() -> int:
         running = len(data.get("queue_running", []))
         return pending + running
     except Exception as e:
-        logging.error(f"Error fetching queue count: {e}")
+        logger.error("Error fetching queue count: %s", e)
         return 0
 
 def get_queue_details() -> list:
@@ -265,18 +253,15 @@ def get_queue_details() -> list:
         jobs = []
         for job_list in [data.get("queue_running", []), data.get("queue_pending", [])]:
             for job in job_list:
-                # Extract prompt data (format: [priority, time, prompt])
                 prompt_data = job[2]
                 model = "Unknown"
                 prompt = "No prompt"
                 
-                # Find model loader node (works for SDXL/FLUX/Qwen workflows)
                 for node in prompt_data.values():
                     if node.get("class_type") in ["CheckpointLoaderSimple", "UnetLoaderGGUFAdvancedDisTorchMultiGPU"]:
                         model = node["inputs"].get("ckpt_name", "Unknown")
                         break
                 
-                # Find prompt node using class_type pattern and title matching
                 for node in prompt_data.values():
                     class_type = node.get("class_type", "")
                     if "CLIPTextEncode" in class_type and "text" in node["inputs"]:
@@ -293,5 +278,5 @@ def get_queue_details() -> list:
                 })
         return jobs
     except Exception as e:
-        logging.error(f"Error fetching queue details: {e}")
+        logger.error("Error fetching queue details: %s", e)
         return []

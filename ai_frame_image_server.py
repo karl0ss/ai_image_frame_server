@@ -17,6 +17,7 @@ from routes import (
 )
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 user_config = load_config()
 
@@ -29,18 +30,15 @@ if not secret_key:
     secret_key = secrets.token_hex(32)
 app.secret_key = secret_key
 
-# Make version available to all templates
 from libs.generic import get_current_version
 @app.context_processor
 def inject_version():
     version = get_current_version()
     return dict(version=version)
 
-# Inject config into routes that need it
 create_routes.init_app(user_config)
 auth_routes.init_app(user_config)
 
-# Register blueprints
 app.register_blueprint(index_routes.bp)
 app.register_blueprint(auth_routes.bp)
 app.register_blueprint(favourites_routes.bp)
@@ -50,23 +48,20 @@ app.register_blueprint(job_routes.bp)
 app.register_blueprint(create_routes.bp)
 app.register_blueprint(settings_routes.bp)
 
-# Optional: scheduler setup
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
 from libs.comfyui import create_image
 
 def scheduled_task():
-    print(f"Executing scheduled task at {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    # Generate a random prompt using either OpenWebUI or OpenRouter
+    logger.info("Executing scheduled task at %s", time.strftime('%Y-%m-%d %H:%M:%S'))
     from libs.generic import create_prompt_with_random_model
-    prompt, topic = create_prompt_with_random_model("Generate a random detailed prompt for stable diffusion.", "")
+    base_prompt = user_config["comfyui"].get("prompt", "Generate a random detailed prompt for stable diffusion.")
+    prompt, topic = create_prompt_with_random_model(base_prompt, "")
     if prompt:
-        # Select a random model
-        import random
         model = "Random Image Model"
         create_image(prompt, model, topic)
     else:
-        print("Failed to generate a prompt for the scheduled task.")
+        logger.warning("Failed to generate a prompt for the scheduled task.")
 
 if get_bool(user_config, "frame", "auto_regen", False):
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
@@ -75,6 +70,7 @@ if get_bool(user_config, "frame", "auto_regen", False):
         scheduler.add_job(scheduled_task, "cron", hour=h, minute=m, id="scheduled_task", max_instances=1, replace_existing=True)
         scheduler.start()
 
-os.makedirs("./output", exist_ok=True)
+output_dir = user_config["comfyui"]["output_dir"].rstrip("/")
+os.makedirs(output_dir, exist_ok=True)
 debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
 app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=debug)

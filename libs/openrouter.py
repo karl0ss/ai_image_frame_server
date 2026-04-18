@@ -1,9 +1,8 @@
 import random
 import logging
 from openai import OpenAI, RateLimitError
-from libs.generic import load_recent_prompts, load_config, build_user_content
+from libs.generic import load_config, build_user_content, extract_prompt, SYSTEM_PROMPT, get_bool
 from libs.openwebui import create_prompt_on_openwebui
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +11,7 @@ output_folder = user_config["comfyui"]["output_dir"]
 
 def get_free_models():
     """Fetch all free models from OpenRouter."""
-    if user_config["openrouter"].get("enabled", "False").lower() != "true":
+    if not get_bool(user_config, "openrouter", "enabled", False):
         return []
     try:
         client = OpenAI(
@@ -24,102 +23,77 @@ def get_free_models():
         free_models = [m for m in all_models if "free" in m.lower()]
         return sorted(free_models, key=str.lower)
     except Exception as e:
-        logging.warning(f"Failed to fetch free models from OpenRouter: {e}")
+        logger.warning("Failed to fetch free models from OpenRouter: %s", e)
         return []
 
-def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str = None) -> str:
+def create_prompt_on_openrouter(base_prompt: str, topic: str = "random", model: str = None) -> str:
     """Sends prompt to OpenRouter and returns the generated response."""
-    # Reload config to get latest values
     config = load_config()
-    # Check if OpenRouter is enabled
-    if config["openrouter"].get("enabled", "False").lower() != "true":
-        logging.warning("OpenRouter is not enabled in the configuration.")
+    if not get_bool(config, "openrouter", "enabled", False):
+        logger.warning("OpenRouter is not enabled in the configuration.")
         return ""
 
     user_content, _ = build_user_content(topic)
+    full_content = f"{base_prompt}\n\n{user_content}" if base_prompt else user_content
 
-    # Load configured models
-    configured_models = [m.strip() for m in user_config["openrouter"]["models"].split(",") if m.strip()]
+    configured_models = [m.strip() for m in config["openrouter"]["models"].split(",") if m.strip()]
     if not configured_models:
-        if user_config["openrouter"].get("list_all_free_models", "False").lower() == "true":
+        if get_bool(config, "openrouter", "list_all_free_models", False):
             configured_models = get_free_models()
         if not configured_models:
-            logging.error("No OpenRouter models configured.")
+            logger.error("No OpenRouter models configured.")
             return ""
 
-    # Create client early for model checking
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=user_config["openrouter"]["api_key"],
+        api_key=config["openrouter"]["api_key"],
     )
 
-    # Select model
     if model:
         original_model = model
-        # Always check if model exists on OpenRouter
         try:
             all_models_response = client.models.list()
             all_models = [m.id for m in all_models_response.data]
             if model not in all_models:
-                # Fallback to random free model from all OpenRouter models
                 free_models = [m for m in all_models if "free" in m.lower()]
                 if free_models:
                     model = random.choice(free_models)
-                    logging.info(f"Specified model '{original_model}' not found on OpenRouter, falling back to free model: {model}")
+                    logger.info("Specified model '%s' not found on OpenRouter, falling back to free model: %s", original_model, model)
                 else:
-                    # No free models, fallback to random configured model
                     model = random.choice(configured_models)
-                    logging.warning(f"Specified model '{original_model}' not found, no free models available on OpenRouter, using random configured model: {model}")
-            # else model exists, use it
+                    logger.warning("Specified model '%s' not found, no free models available on OpenRouter, using random configured model: %s", original_model, model)
         except Exception as e:
-            logging.warning(f"Failed to fetch OpenRouter models for validation: {e}. Falling back to configured models.")
+            logger.warning("Failed to fetch OpenRouter models for validation: %s. Falling back to configured models.", e)
             if model not in configured_models:
-                # Fallback to random free from configured
                 free_models = [m for m in configured_models if "free" in m.lower()]
                 if free_models:
                     model = random.choice(free_models)
-                    logging.info(f"Specified model '{original_model}' not found, falling back to free configured model: {model}")
+                    logger.info("Specified model '%s' not found, falling back to free configured model: %s", original_model, model)
                 else:
                     model = random.choice(configured_models)
-                    logging.warning(f"Specified model '{original_model}' not found, no free configured models available, using random configured model: {model}")
-            # else use the specified model
+                    logger.warning("Specified model '%s' not found, no free configured models available, using random configured model: %s", original_model, model)
     else:
         model = random.choice(configured_models)
     
     try:
-        client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=user_config["openrouter"]["api_key"],
-        )
-
-        system_content = (
-            "You are a prompt generator for Stable Diffusion. "
-            "Generate a detailed and imaginative prompt with a strong visual theme. "
-            "Focus on lighting, atmosphere, and artistic style. "
-            "Keep the prompt concise, no extra commentary or formatting."
-        )
-
-        # Try the specified model first
         try:
             completion = client.chat.completions.create(
                 model=model,
                 messages=[
                     {
                         "role": "system",
-                        "content": system_content,
+                        "content": SYSTEM_PROMPT,
                     },
                     {
                         "role": "user",
-                        "content": user_content,
+                        "content": full_content,
                     },
                 ]
             )
         except Exception as e:
-            # If system message fails (e.g., model doesn't support developer instructions),
-            # retry with instructions included in user message
             if "developer instruction" in str(e).lower() or "system message" in str(e).lower():
-                logging.info(f"Model {model} doesn't support system messages, retrying with instructions in user message")
-                combined_content = f"{system_content}\n\n{user_content}"
+                logger.info("Model %s doesn't support system messages, retrying with instructions in user message", model)
+                combined_content = f"{SYSTEM_PROMPT}\n\n{full_content}"
                 completion = client.chat.completions.create(
                     model=model,
                     messages=[
@@ -130,74 +104,55 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
                     ]
                 )
             else:
-                # If it's another error, try fallback models
-                logging.warning(f"Error with model {model}: {e}. Trying fallback models.")
+                logger.warning("Error with model %s: %s. Trying fallback models.", model, e)
                 raise e
 
-        # If we get here, the completion was successful
-
-        prompt = completion.choices[0].message.content.strip('"')
-        match = re.search(r'"([^"]+)"', prompt)
-        if not match:
-            match = re.search(r":\s*\n*\s*(.+)", prompt)
-        if match:
-            prompt = match.group(1)
-        logging.debug(prompt)
+        prompt = extract_prompt(completion.choices[0].message.content)
+        logger.debug(prompt)
         return prompt
     except RateLimitError as e:
-        logging.warning(f"OpenRouter rate limit exceeded (429): {e}. Falling back to local OpenWebUI model.")
-        # Try to use OpenWebUI as fallback
-        openwebui_models = [m.strip() for m in user_config["openwebui"]["models"].split(",") if m.strip()] if "openwebui" in user_config and "models" in user_config["openwebui"] else []
+        logger.warning("OpenRouter rate limit exceeded (429): %s. Falling back to local OpenWebUI model.", e)
+        openwebui_models = [m.strip() for m in config["openwebui"]["models"].split(",") if m.strip()] if "openwebui" in config and "models" in config["openwebui"] else []
         if openwebui_models:
             selected_model = random.choice(openwebui_models)
             try:
-                return create_prompt_on_openwebui(user_content, topic, selected_model)
+                return create_prompt_on_openwebui(full_content, topic, selected_model)
             except Exception as e2:
-                logging.error(f"OpenWebUI fallback also failed: {e2}")
-                return "A colorful abstract composition"  # Final fallback
+                logger.error("OpenWebUI fallback also failed: %s", e2)
+                return "A colorful abstract composition"
         else:
-            logging.error("No OpenWebUI models configured for fallback.")
-            return "A colorful abstract composition"  # Final fallback
+            logger.error("No OpenWebUI models configured for fallback.")
+            return "A colorful abstract composition"
     except Exception as e:
-        # If the specified model fails, try fallback models
-        logging.warning(f"Primary model {model} failed: {e}. Trying fallback models.")
+        logger.warning("Primary model %s failed: %s. Trying fallback models.", model, e)
 
-        # Get all available models for fallback
-        configured_models = [m.strip() for m in user_config["openrouter"]["models"].split(",") if m.strip()]
+        fallback_configured = [m.strip() for m in config["openrouter"]["models"].split(",") if m.strip()]
         free_models = get_free_models()
-
-        # Combine configured and free models, excluding the failed one
-        all_models = configured_models + free_models
+        all_models = fallback_configured + free_models
         fallback_models = [m for m in all_models if m != model]
 
         if not fallback_models:
-            logging.error("No fallback models available.")
+            logger.error("No fallback models available.")
             return ""
 
-        # Try up to 3 fallback models
         for fallback_model in fallback_models[:3]:
             try:
-                logging.info(f"Trying fallback model: {fallback_model}")
+                logger.info("Trying fallback model: %s", fallback_model)
                 completion = client.chat.completions.create(
                     model=fallback_model,
                     messages=[
                         {
                             "role": "user",
-                            "content": f"{system_content}\n\n{user_content}",
+                            "content": f"{SYSTEM_PROMPT}\n\n{full_content}",
                         },
                     ]
                 )
-                prompt = completion.choices[0].message.content.strip('"')
-                match = re.search(r'"([^"]+)"', prompt)
-                if not match:
-                    match = re.search(r":\s*\n*\s*(.+)", prompt)
-                if match:
-                    prompt = match.group(1)
-                logging.info(f"Successfully generated prompt with fallback model: {fallback_model}")
+                prompt = extract_prompt(completion.choices[0].message.content)
+                logger.info("Successfully generated prompt with fallback model: %s", fallback_model)
                 return prompt
             except Exception as fallback_e:
-                logging.warning(f"Fallback model {fallback_model} also failed: {fallback_e}")
+                logger.warning("Fallback model %s also failed: %s", fallback_model, fallback_e)
                 continue
 
-        logging.error("All models failed, including fallbacks.")
+        logger.error("All models failed, including fallbacks.")
         return ""

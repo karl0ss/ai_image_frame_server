@@ -1,8 +1,7 @@
 import random
 import logging
 from ollama import Client
-from libs.generic import load_recent_prompts, load_config, build_user_content
-import re
+from libs.generic import load_config, build_user_content, extract_prompt, SYSTEM_PROMPT, get_bool
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,7 @@ def _get_client(config=None):
 
 def get_cloud_models():
     """Fetch all available models from Ollama Cloud."""
-    if user_config["ollama"].get("enabled", "False").lower() != "true":
+    if not get_bool(user_config, "ollama", "enabled", False):
         return []
     try:
         client = _get_client()
@@ -26,24 +25,25 @@ def get_cloud_models():
         all_models = [m.model for m in response.models]
         return sorted(all_models, key=str.lower)
     except Exception as e:
-        logging.warning(f"Failed to fetch models from Ollama Cloud: {e}")
+        logger.warning("Failed to fetch models from Ollama Cloud: %s", e)
         return []
 
-def create_prompt_on_ollama(prompt: str, topic: str = "random", model: str = None) -> str:
+def create_prompt_on_ollama(base_prompt: str, topic: str = "random", model: str = None) -> str:
     """Sends prompt to Ollama Cloud and returns the generated response."""
     config = load_config()
-    if config["ollama"].get("enabled", "False").lower() != "true":
-        logging.warning("Ollama Cloud is not enabled in the configuration.")
+    if not get_bool(config, "ollama", "enabled", False):
+        logger.warning("Ollama Cloud is not enabled in the configuration.")
         return ""
 
     user_content, _ = build_user_content(topic)
+    full_content = f"{base_prompt}\n\n{user_content}" if base_prompt else user_content
 
-    configured_models = [m.strip() for m in user_config["ollama"]["models"].split(",") if m.strip()]
+    configured_models = [m.strip() for m in config["ollama"]["models"].split(",") if m.strip()]
     if not configured_models:
-        if user_config["ollama"].get("list_all_cloud_models", "False").lower() == "true":
+        if get_bool(config, "ollama", "list_all_cloud_models", False):
             configured_models = get_cloud_models()
         if not configured_models:
-            logging.error("No Ollama Cloud models configured.")
+            logger.error("No Ollama Cloud models configured.")
             return ""
 
     client = _get_client(config)
@@ -56,38 +56,31 @@ def create_prompt_on_ollama(prompt: str, topic: str = "random", model: str = Non
             if model not in all_models:
                 if all_models:
                     model = random.choice(all_models)
-                    logging.info(f"Specified model '{original_model}' not found on Ollama Cloud, falling back to: {model}")
+                    logger.info("Specified model '%s' not found on Ollama Cloud, falling back to: %s", original_model, model)
                 else:
                     model = random.choice(configured_models)
-                    logging.warning(f"Specified model '{original_model}' not found, no cloud models available, using random configured model: {model}")
+                    logger.warning("Specified model '%s' not found, no cloud models available, using random configured model: %s", original_model, model)
         except Exception as e:
-            logging.warning(f"Failed to fetch Ollama Cloud models for validation: {e}. Falling back to configured models.")
+            logger.warning("Failed to fetch Ollama Cloud models for validation: %s. Falling back to configured models.", e)
             if model not in configured_models:
                 model = random.choice(configured_models)
-                logging.warning(f"Specified model '{original_model}' not found, using random configured model: {model}")
+                logger.warning("Specified model '%s' not found, using random configured model: %s", original_model, model)
     else:
         model = random.choice(configured_models)
-
-    system_content = (
-        "You are a prompt generator for Stable Diffusion. "
-        "Generate a detailed and imaginative prompt with a strong visual theme. "
-        "Focus on lighting, atmosphere, and artistic style. "
-        "Keep the prompt concise, no extra commentary or formatting."
-    )
 
     try:
         response = client.chat(
             model=model,
             messages=[
-                {"role": "system", "content": system_content},
-                {"role": "user", "content": user_content},
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": full_content},
             ]
         )
         result = response.message.content.strip('"')
     except Exception as e:
         if "system" in str(e).lower() and ("instruction" in str(e).lower() or "message" in str(e).lower()):
-            logging.info(f"Model {model} doesn't support system messages, retrying with instructions in user message")
-            combined_content = f"{system_content}\n\n{user_content}"
+            logger.info("Model %s doesn't support system messages, retrying with instructions in user message", model)
+            combined_content = f"{SYSTEM_PROMPT}\n\n{full_content}"
             try:
                 response = client.chat(
                     model=model,
@@ -95,49 +88,38 @@ def create_prompt_on_ollama(prompt: str, topic: str = "random", model: str = Non
                 )
                 result = response.message.content.strip('"')
             except Exception as e2:
-                logging.warning(f"Error with model {model} on retry: {e2}. Trying fallback models.")
-                return _try_fallback_models(client, configured_models, model, system_content, user_content)
+                logger.warning("Error with model %s on retry: %s. Trying fallback models.", model, e2)
+                return _try_fallback_models(client, configured_models, model, full_content)
         else:
-            logging.warning(f"Error with model {model}: {e}. Trying fallback models.")
-            return _try_fallback_models(client, configured_models, model, system_content, user_content)
+            logger.warning("Error with model %s: %s. Trying fallback models.", model, e)
+            return _try_fallback_models(client, configured_models, model, full_content)
 
-    match = re.search(r'"([^"]+)"', result)
-    if not match:
-        match = re.search(r":\s*\n*\s*(.+)", result)
-    if match:
-        result = match.group(1)
-    logging.debug(result)
-    return result
+    return extract_prompt(result)
 
 
-def _try_fallback_models(client, configured_models, failed_model, system_content, user_content):
+def _try_fallback_models(client, configured_models, failed_model, full_content):
     """Try up to 3 fallback models when the primary model fails."""
     cloud_models = get_cloud_models()
     all_models = configured_models + cloud_models
     fallback_models = [m for m in all_models if m != failed_model]
 
     if not fallback_models:
-        logging.error("No fallback models available.")
+        logger.error("No fallback models available.")
         return ""
 
     for fallback_model in fallback_models[:3]:
         try:
-            logging.info(f"Trying fallback model: {fallback_model}")
+            logger.info("Trying fallback model: %s", fallback_model)
             response = client.chat(
                 model=fallback_model,
-                messages=[{"role": "user", "content": f"{system_content}\n\n{user_content}"}]
+                messages=[{"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{full_content}"}]
             )
-            result = response.message.content.strip('"')
-            match = re.search(r'"([^"]+)"', result)
-            if not match:
-                match = re.search(r":\s*\n*\s*(.+)", result)
-            if match:
-                result = match.group(1)
-            logging.info(f"Successfully generated prompt with fallback model: {fallback_model}")
+            result = extract_prompt(response.message.content)
+            logger.info("Successfully generated prompt with fallback model: %s", fallback_model)
             return result
         except Exception as fallback_e:
-            logging.warning(f"Fallback model {fallback_model} also failed: {fallback_e}")
+            logger.warning("Fallback model %s also failed: %s", fallback_model, fallback_e)
             continue
 
-    logging.error("All models failed, including fallbacks.")
+    logger.error("All models failed, including fallbacks.")
     return ""

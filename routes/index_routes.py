@@ -1,15 +1,15 @@
-from flask import Blueprint, render_template
 import os
+from flask import Blueprint, render_template
 from libs.generic import get_details_from_png, get_current_version, load_config
 
 bp = Blueprint("index_routes", __name__)
-image_folder = "./output"
 user_config = load_config()
+output_folder = user_config["comfyui"]["output_dir"]
 
 @bp.route("/", methods=["GET"])
 def index():
-    image_filename = "./image.png"
-    image_path = os.path.join(image_folder, image_filename)
+    image_filename = "image.png"
+    image_path = os.path.join(output_folder, image_filename)
     details = get_details_from_png(image_path)
     prompt = details.get("p", "") if details else ""
 

@@ -1,6 +1,5 @@
-from flask import Blueprint, render_template, jsonify, request
 import os
-import json
+from flask import Blueprint, render_template, jsonify, request
 from libs.generic import get_favourites, save_favourites
 
 bp = Blueprint("gallery_routes", __name__)

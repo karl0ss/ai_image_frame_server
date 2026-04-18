@@ -4,6 +4,8 @@ auto_regen = True
 regen_time = 03:00
 port = 5000
 create_requires_auth = False
+# password_for_auth should be a SHA-256 hash of your desired password
+# Generate with: python -c "import hashlib; print(hashlib.sha256(b'your_password').hexdigest())"
 password_for_auth = create
 
 [comfyui]
