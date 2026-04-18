@@ -44,8 +44,11 @@ def create_prompt_on_ollama(prompt: str, topic: str = "random", model: str = Non
 
     configured_models = [m.strip() for m in user_config["ollama"]["models"].split(",") if m.strip()]
     if not configured_models:
-        logging.error("No Ollama Cloud models configured.")
-        return ""
+        if user_config["ollama"].get("list_all_cloud_models", "False").lower() == "true":
+            configured_models = get_cloud_models()
+        if not configured_models:
+            logging.error("No Ollama Cloud models configured.")
+            return ""
 
     client = _get_client(config)
 

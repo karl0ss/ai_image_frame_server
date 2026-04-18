@@ -45,8 +45,11 @@ def create_prompt_on_openrouter(prompt: str, topic: str = "random", model: str =
     # Load configured models
     configured_models = [m.strip() for m in user_config["openrouter"]["models"].split(",") if m.strip()]
     if not configured_models:
-        logging.error("No OpenRouter models configured.")
-        return ""
+        if user_config["openrouter"].get("list_all_free_models", "False").lower() == "true":
+            configured_models = get_free_models()
+        if not configured_models:
+            logging.error("No OpenRouter models configured.")
+            return ""
 
     # Create client early for model checking
     client = OpenAI(
