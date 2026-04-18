@@ -1,15 +1,11 @@
 import random
 import logging
 from openai import OpenAI, RateLimitError
-import nest_asyncio
 from libs.generic import load_recent_prompts, load_config, build_user_content
 from libs.openwebui import create_prompt_on_openwebui
 import re
-nest_asyncio.apply()
 
-logging.basicConfig(level=logging.INFO)
-
-LOG_FILE = "./prompts_log.jsonl"
+logger = logging.getLogger(__name__)
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]

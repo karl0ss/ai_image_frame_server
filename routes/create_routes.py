@@ -8,6 +8,28 @@ import os
 bp = Blueprint("create_routes", __name__)
 user_config = None  # will be set in init_app
 
+
+def _load_models_and_topics():
+    """Shared model and topic loading for /create and /create_image routes."""
+    sdxl_models, flux_models, qwen_models = load_models_from_config()
+    openwebui_models = load_openwebui_models_from_config()
+    openrouter_models, openrouter_free_models = load_openrouter_models_from_config()
+    ollama_models, ollama_cloud_models = load_ollama_models_from_config()
+    queue_count = get_queue_count()
+    topics = load_topics_from_config()
+    return {
+        "sdxl_models": sdxl_models,
+        "flux_models": flux_models,
+        "qwen_models": qwen_models,
+        "openwebui_models": openwebui_models,
+        "openrouter_models": openrouter_models,
+        "openrouter_free_models": openrouter_free_models,
+        "ollama_models": ollama_models,
+        "ollama_cloud_models": ollama_cloud_models,
+        "topics": topics,
+        "queue_count": queue_count
+    }
+
 @bp.route("/create", methods=["GET", "POST"])
 def create():
     if request.method == "POST":
@@ -39,27 +61,12 @@ def create():
         else:
             selected_topic = topic if topic and topic not in ["random"] else ""
 
-        threading.Thread(target=lambda: create_image(prompt, model, selected_topic)).start()
+        threading.Thread(target=create_image, args=(prompt, model, selected_topic)).start()
         return redirect(url_for("create_routes.image_queued", prompt=prompt, model=model.split(".")[0]))
 
-    # Load all models (SDXL, FLUX, and Qwen)
-    sdxl_models, flux_models, qwen_models = load_models_from_config()
-    openwebui_models = load_openwebui_models_from_config()
-    openrouter_models, openrouter_free_models = load_openrouter_models_from_config()
-    ollama_models, ollama_cloud_models = load_ollama_models_from_config()
-
-    queue_count = get_queue_count()
+    models_and_topics = _load_models_and_topics()
     return render_template("create_image.html",
-                         sdxl_models=sdxl_models,
-                         flux_models=flux_models,
-                         qwen_models=qwen_models,
-                         openwebui_models=openwebui_models,
-                         openrouter_models=openrouter_models,
-                         openrouter_free_models=openrouter_free_models,
-                         ollama_models=ollama_models,
-                         ollama_cloud_models=ollama_cloud_models,
-                         topics=load_topics_from_config(),
-                         queue_count=queue_count)
+                          **models_and_topics)
 
 @bp.route("/image_queued")
 def image_queued():
@@ -76,24 +83,9 @@ def create_image_page():
     if user_config["frame"]["create_requires_auth"] == "True" and not session.get("authenticated"):
         return redirect(url_for("auth_routes.login", next=request.path))
     
-    # Load all models (SDXL, FLUX, and Qwen)
-    sdxl_models, flux_models, qwen_models = load_models_from_config()
-    openwebui_models = load_openwebui_models_from_config()
-    openrouter_models, openrouter_free_models = load_openrouter_models_from_config()
-    ollama_models, ollama_cloud_models = load_ollama_models_from_config()
-
-    queue_count = get_queue_count()
+    models_and_topics = _load_models_and_topics()
     return render_template("create_image.html",
-                         sdxl_models=sdxl_models,
-                         flux_models=flux_models,
-                         qwen_models=qwen_models,
-                         openwebui_models=openwebui_models,
-                         openrouter_models=openrouter_models,
-                         openrouter_free_models=openrouter_free_models,
-                         ollama_models=ollama_models,
-                         ollama_cloud_models=ollama_cloud_models,
-                         topics=load_topics_from_config(),
-                         queue_count=queue_count)
+                          **models_and_topics)
 
 
 def init_app(config):

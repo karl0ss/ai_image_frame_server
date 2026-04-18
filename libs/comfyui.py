@@ -13,15 +13,11 @@ from tenacity import (
     before_log,
     retry_if_exception_type,
 )
-import nest_asyncio
 from libs.generic import rename_image, load_config, save_prompt
 from libs.create_thumbnail import generate_thumbnail
 from libs.openwebui import create_prompt_on_openwebui
-nest_asyncio.apply()
 
-logging.basicConfig(level=logging.INFO)
-
-LOG_FILE = "./prompts_log.jsonl"
+logger = logging.getLogger(__name__)
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]

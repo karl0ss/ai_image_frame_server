@@ -1,7 +1,10 @@
-from flask import Flask
-from libs.generic import load_config, get_bool
+import logging
 import os
 
+import nest_asyncio
+from flask import Flask
+
+from libs.generic import load_config, get_bool
 from routes import (
     auth_routes,
     favourites_routes,
@@ -13,7 +16,11 @@ from routes import (
     settings_routes
 )
 
+logging.basicConfig(level=logging.INFO)
+
 user_config = load_config()
+
+nest_asyncio.apply()
 
 app = Flask(__name__)
 secret_key = os.environ.get("SECRET_KEY")

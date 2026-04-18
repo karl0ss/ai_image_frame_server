@@ -7,13 +7,9 @@ import os
 import random
 import shutil
 from PIL import Image
-import nest_asyncio
 import json
 from datetime import datetime
 from libs.create_thumbnail import generate_thumbnail
-nest_asyncio.apply()
-
-logging.basicConfig(level=logging.INFO)
 
 LOG_FILE = "./prompts_log.jsonl"
 
