@@ -50,7 +50,7 @@ def create():
 
     queue_count = get_queue_count()
     return render_template("create_image.html",
-                         sdxx_models=sdxl_models,
+                         sdxl_models=sdxl_models,
                          flux_models=flux_models,
                          qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
@@ -84,7 +84,7 @@ def create_image_page():
 
     queue_count = get_queue_count()
     return render_template("create_image.html",
-                         sdxx_models=sdxl_models,
+                         sdxl_models=sdxl_models,
                          flux_models=flux_models,
                          qwen_models=qwen_models,
                          openwebui_models=openwebui_models,
