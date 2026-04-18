@@ -3,8 +3,8 @@ services:
     build: ./
     container_name: ai_frame_image_server
     volumes:
-      - $(pwd)/output:/app/output
-      - $(pwd)/user_config.cfg:/app/user_config.cfg
+      - ${PWD}/output:/app/output
+      - ${PWD}/user_config.cfg:/app/user_config.cfg
     ports:
       - 8088:5000
     restart: unless-stopped

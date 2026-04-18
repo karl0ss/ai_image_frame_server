@@ -1,5 +1,5 @@
 from flask import Flask
-from libs.generic import load_config
+from libs.generic import load_config, get_bool
 import os
 
 from routes import (
@@ -16,7 +16,11 @@ from routes import (
 user_config = load_config()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY")
+secret_key = os.environ.get("SECRET_KEY")
+if not secret_key:
+    import secrets
+    secret_key = secrets.token_hex(32)
+app.secret_key = secret_key
 
 # Make version available to all templates
 from libs.generic import get_current_version
@@ -57,7 +61,7 @@ def scheduled_task():
     else:
         print("Failed to generate a prompt for the scheduled task.")
 
-if user_config["frame"]["auto_regen"] == "True":
+if get_bool(user_config, "frame", "auto_regen", False):
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         scheduler = BackgroundScheduler()
         h, m = user_config["frame"]["regen_time"].split(":")
@@ -65,4 +69,5 @@ if user_config["frame"]["auto_regen"] == "True":
         scheduler.start()
 
 os.makedirs("./output", exist_ok=True)
-app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=True)
+debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=debug)

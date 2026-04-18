@@ -1,20 +1,10 @@
 from flask import Blueprint, render_template, jsonify, request
 import os
 import json
+from libs.generic import get_favourites, save_favourites
 
 bp = Blueprint("gallery_routes", __name__)
 image_folder = "./output"
-favourites_file = "./favourites.json"
-
-def get_favourites():
-    if not os.path.exists(favourites_file):
-        return []
-    with open(favourites_file, 'r') as f:
-        return json.load(f)
-
-def save_favourites(favourites):
-    with open(favourites_file, 'w') as f:
-        json.dump(favourites, f)
 
 @bp.route("/images", methods=["GET"])
 def gallery():

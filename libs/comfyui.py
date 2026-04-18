@@ -2,6 +2,7 @@ import random
 import logging
 import os
 import json
+import time
 import requests
 from typing import Optional
 from comfy_api_simplified import ComfyApiWrapper, ComfyWorkflowWrapper
@@ -25,26 +26,44 @@ LOG_FILE = "./prompts_log.jsonl"
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
 
+AVAILABLE_MODELS_CACHE = None
+AVAILABLE_MODELS_CACHE_TIME = 0
+AVAILABLE_MODELS_CACHE_TTL = 300  # 5 minutes
+
 
 def get_available_models() -> list:
-    """Fetches available models from ComfyUI."""
+    """Fetches available models from ComfyUI with caching."""
+    global AVAILABLE_MODELS_CACHE, AVAILABLE_MODELS_CACHE_TIME
+    
+    if AVAILABLE_MODELS_CACHE is not None:
+        if time.time() - AVAILABLE_MODELS_CACHE_TIME < AVAILABLE_MODELS_CACHE_TTL:
+            return AVAILABLE_MODELS_CACHE
+    
     url = user_config["comfyui"]["comfyui_url"] + "/object_info"
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        # Get SDXL models from CheckpointLoaderSimple
-        general = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [[]])[0]
-        # Get FLUX models from UnetLoaderGGUF
-        flux = data.get("UnetLoaderGGUF", {}).get("input", {}).get("required", {}).get("unet_name", [[]])[0]
-        # Combine both lists, handling cases where one might be missing
-        all_models = []
-        if isinstance(general, list):
-            all_models.extend(general)
-        if isinstance(flux, list):
-            all_models.extend(flux)
-        return all_models
-    else:
-        print(f"Failed to fetch models: {response.status_code}")
+    try:
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            # Get SDXL models from CheckpointLoaderSimple
+            general = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [[]])[0]
+            # Get FLUX models from UnetLoaderGGUF
+            flux = data.get("UnetLoaderGGUF", {}).get("input", {}).get("required", {}).get("unet_name", [[]])[0]
+            # Combine both lists, handling cases where one might be missing
+            all_models = []
+            if isinstance(general, list):
+                all_models.extend(general)
+            if isinstance(flux, list):
+                all_models.extend(flux)
+            AVAILABLE_MODELS_CACHE = all_models
+            AVAILABLE_MODELS_CACHE_TIME = time.time()
+            return all_models
+        else:
+            print(f"Failed to fetch models: {response.status_code}")
+            return []
+    except Exception as e:
+        print(f"Error fetching models: {e}")
+        if AVAILABLE_MODELS_CACHE is not None:
+            return AVAILABLE_MODELS_CACHE
         return []
 
 
@@ -280,13 +299,3 @@ def get_queue_details() -> list:
     except Exception as e:
         logging.error(f"Error fetching queue details: {e}")
         return []
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
-        pending = len(data.get("queue_pending", []))
-        running = len(data.get("queue_running", []))
-        return pending + running
-    except Exception as e:
-        logging.error(f"Error fetching queue count: {e}")
-        return 0

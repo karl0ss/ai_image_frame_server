@@ -132,7 +132,7 @@
           <option value="False" {% if value.lower()=='false' %}selected{% endif %}>False</option>
         </select>
         {% else %}
-        {% if key in ['password_for_auth', 'api_key'] %}
+        {% if key in sensitive_keys %}
         <input type="text" name="{{ section }}:{{ key }}" value="********" placeholder="********">
         {% elif value.lower() in ['true', 'false'] %}
         <select name="{{ section }}:{{ key }}">

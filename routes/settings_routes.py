@@ -5,6 +5,8 @@ from libs.generic import load_topics_from_config, load_models_from_config
 bp = Blueprint('settings_route', __name__)
 CONFIG_PATH = "./user_config.cfg"
 
+SENSITIVE_KEYS = {'password_for_auth', 'api_key'}
+
 @bp.route('/settings', methods=['GET', 'POST'])
 def config_editor():
     if not session.get("authenticated"):
@@ -65,7 +67,7 @@ def config_editor():
                 if form_key in request.form:
                     new_value = request.form[form_key]
                     # Prevent overwriting masked secrets unless actually changed
-                    if key in ('password_for_auth', 'api_key') and new_value == "********":
+                    if key in SENSITIVE_KEYS and new_value == "********":
                         continue  # Skip overwriting
                     config[section][key] = new_value
 
@@ -94,5 +96,6 @@ def config_editor():
         topics=sorted(topics,key=str.lower),
         models=sorted(general_models + flux_models,key=str.lower),
         config_sections=filtered_config.keys(),
-        config_values=filtered_config
+        config_values=filtered_config,
+        sensitive_keys=SENSITIVE_KEYS
     )

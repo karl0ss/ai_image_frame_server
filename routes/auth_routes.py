@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session
+import hmac
 from libs.generic import load_models_from_config, load_topics_from_config
 from urllib.parse import urlparse, urljoin
 
@@ -19,7 +20,8 @@ def login():
     next_url = request.args.get("next") if request.method == "GET" else request.form.get("next")
 
     if request.method == "POST":
-        if request.form["password"] == user_config["frame"]["password_for_auth"]:
+        stored_hash = user_config["frame"]["password_for_auth"]
+        if request.form["password"] and hmac.compare_digest(request.form["password"], stored_hash):
             session["authenticated"] = True
             if next_url and is_safe_url(next_url):
                 return redirect(next_url)

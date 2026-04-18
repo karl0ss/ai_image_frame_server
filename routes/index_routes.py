@@ -10,11 +10,12 @@ user_config = load_config()
 def index():
     image_filename = "./image.png"
     image_path = os.path.join(image_folder, image_filename)
-    prompt = get_details_from_png(image_path)["p"]
+    details = get_details_from_png(image_path)
+    prompt = details.get("p", "") if details else ""
 
     return render_template(
         "index.html",
         image=image_filename,
-        prompt=prompt,
+        prompt=prompt if prompt else "No prompt available",
         reload_interval=user_config["frame"]["reload_interval"],
     )

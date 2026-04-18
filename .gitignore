@@ -13,3 +13,4 @@ test.py
 favourites.json
 .vscode/launch.json
 venv/*
+.kilo/plans/

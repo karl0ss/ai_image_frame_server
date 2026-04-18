@@ -55,6 +55,15 @@ def save_prompt(prompt, topic=""):
         f.write(json.dumps(entry) + "\n")
 
 
+def get_bool(config: configparser.ConfigParser, section: str, key: str, default: bool = False) -> bool:
+    """Parse a boolean value from ConfigParser (which stores everything as strings).
+    
+    Handles both 'True'/'False' (Python-style) and 'true'/'false' (lowercase) formats.
+    """
+    value = config.get(section, key, fallback=str(default)).lower()
+    return value == "true"
+
+
 def load_config() -> configparser.ConfigParser:
     """Loads user configuration from ./user_config.cfg. If it doesn't exist, copies from user_config.cfg.sample."""
     user_config = configparser.ConfigParser()
@@ -81,21 +90,22 @@ def load_config() -> configparser.ConfigParser:
 def rename_image() -> str | None:
     """Renames 'image.png' in the output folder to a timestamped filename if it exists."""
     old_path = os.path.join(user_config["comfyui"]["output_dir"], "image.png")
-    favourites_file = "./favourites.json"
 
     if os.path.exists(old_path):
         new_filename = f"{str(time.time())}.png"
         new_path = os.path.join(user_config["comfyui"]["output_dir"], new_filename)
 
-        # Check if image.png is a favourite
+        # Check if image.png is a favourite and update atomically
+        temp_favourites_path = favourites_file + ".tmp"
         if os.path.exists(favourites_file):
             with open(favourites_file, 'r') as f:
                 favourites = json.load(f)
             if "image.png" in favourites:
                 favourites.remove("image.png")
                 favourites.append(new_filename)
-                with open(favourites_file, 'w') as f:
+                with open(temp_favourites_path, 'w') as f:
                     json.dump(favourites, f)
+                os.replace(temp_favourites_path, favourites_file)
 
         os.rename(old_path, new_path)
         generate_thumbnail(new_path)
@@ -104,6 +114,22 @@ def rename_image() -> str | None:
     else:
         print("No image.png found.")
         return None
+
+
+def get_favourites() -> list[str]:
+    """Loads and returns the list of favourited images."""
+    if not os.path.exists(favourites_file):
+        return []
+    with open(favourites_file, 'r') as f:
+        return json.load(f)
+
+
+def save_favourites(favourites: list[str]) -> None:
+    """Saves the list of favourited images atomically using os.replace()."""
+    temp_path = favourites_file + ".tmp"
+    with open(temp_path, 'w') as f:
+        json.dump(favourites, f)
+    os.replace(temp_path, favourites_file)
 
 
 def get_details_from_png(path):
@@ -170,7 +196,8 @@ def load_models_from_config():
 
 
 def load_topics_from_config():
-    topics = load_config()["comfyui"]["topics"].split(",")
+    config = load_config()
+    topics = config["comfyui"]["topics"].split(",")
     sorted_topics = sorted(topics, key=str.lower)
     return sorted_topics
 
@@ -363,3 +390,4 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
 
 user_config = load_config()
 output_folder = user_config["comfyui"]["output_dir"]
+favourites_file = "./favourites.json"
