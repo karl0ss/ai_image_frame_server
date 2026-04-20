@@ -63,14 +63,15 @@ def scheduled_task():
     else:
         logger.warning("Failed to generate a prompt for the scheduled task.")
 
-if get_bool(user_config, "frame", "auto_regen", False):
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        logger.info("Initializing scheduled image generation at %s", user_config["frame"]["regen_time"])
-        scheduler = BackgroundScheduler()
-        h, m = user_config["frame"]["regen_time"].split(":")
-        scheduler.add_job(scheduled_task, "cron", hour=h, minute=m, id="scheduled_task", max_instances=1, replace_existing=True)
-        scheduler.start()
-        logger.info("Scheduled image generation active - will run daily at %s", user_config["frame"]["regen_time"])
+should_schedule = get_bool(user_config, "frame", "auto_regen", False)
+logger.info("auto_regen config check: %s", should_schedule)
+if should_schedule:
+    logger.info("Initializing scheduled image generation at %s", user_config["frame"]["regen_time"])
+    scheduler = BackgroundScheduler()
+    h, m = user_config["frame"]["regen_time"].split(":")
+    scheduler.add_job(scheduled_task, "cron", hour=h, minute=m, id="scheduled_task", max_instances=1, replace_existing=True)
+    scheduler.start()
+    logger.info("Scheduled image generation active - will run daily at %s", user_config["frame"]["regen_time"])
 
 output_dir = user_config["comfyui"]["output_dir"].rstrip("/")
 os.makedirs(output_dir, exist_ok=True)
