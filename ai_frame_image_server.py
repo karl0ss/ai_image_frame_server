@@ -16,7 +16,7 @@ from routes import (
     settings_routes
 )
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, force=True)
 logger = logging.getLogger(__name__)
 
 user_config = load_config()
