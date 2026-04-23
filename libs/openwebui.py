@@ -1,4 +1,3 @@
-import random
 import logging
 from libs.generic import load_config, build_user_content, extract_prompt
 from openwebui_chat_client import OpenWebUIClient
@@ -6,11 +5,8 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-user_config = load_config()
-output_folder = user_config["comfyui"]["output_dir"]
 
 def create_prompt_on_openwebui(base_prompt: str, topic: str = "random", model: str = None) -> str:
-    """Sends prompt to OpenWebUI and returns the generated response."""
     config = load_config()
     user_content, _ = build_user_content(topic)
     if base_prompt:
@@ -18,7 +14,7 @@ def create_prompt_on_openwebui(base_prompt: str, topic: str = "random", model: s
     else:
         full_content = user_content
 
-    model = model or random.choice(config["openwebui"]["models"].split(",")).strip()
+    model = model or config["openwebui"]["models"].split(",")[0].strip()
 
     client = OpenWebUIClient(
         base_url=config["openwebui"]["base_url"],

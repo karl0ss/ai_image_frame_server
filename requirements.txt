@@ -9,3 +9,4 @@ Pillow
 bump-my-version
 openwebui-chat-client
 ollama
+waitress

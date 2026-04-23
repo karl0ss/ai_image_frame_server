@@ -1,13 +1,14 @@
 import os
 from flask import Blueprint, render_template
-from libs.generic import get_details_from_png, get_current_version, load_config
+from libs.generic import get_details_from_png, load_config
 
 bp = Blueprint("index_routes", __name__)
-user_config = load_config()
-output_folder = user_config["comfyui"]["output_dir"]
+
 
 @bp.route("/", methods=["GET"])
 def index():
+    config = load_config()
+    output_folder = config["comfyui"]["output_dir"]
     image_filename = "image.png"
     image_path = os.path.join(output_folder, image_filename)
     details = get_details_from_png(image_path)
@@ -17,5 +18,5 @@ def index():
         "index.html",
         image=image_filename,
         prompt=prompt if prompt else "No prompt available",
-        reload_interval=user_config["frame"]["reload_interval"],
+        reload_interval=config["frame"]["reload_interval"],
     )

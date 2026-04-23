@@ -1,6 +1,6 @@
-import random
 import logging
 import os
+import random
 import time
 import requests
 from typing import Optional
@@ -17,23 +17,19 @@ from libs.create_thumbnail import generate_thumbnail
 
 logger = logging.getLogger(__name__)
 
-user_config = load_config()
-output_folder = user_config["comfyui"]["output_dir"]
-
 AVAILABLE_MODELS_CACHE = None
 AVAILABLE_MODELS_CACHE_TIME = 0
-AVAILABLE_MODELS_CACHE_TTL = 300  # 5 minutes
+AVAILABLE_MODELS_CACHE_TTL = 300
 
 
 def get_available_models() -> list:
-    """Fetches available models from ComfyUI with caching."""
     global AVAILABLE_MODELS_CACHE, AVAILABLE_MODELS_CACHE_TIME
-    
-    if AVAILABLE_MODELS_CACHE is not None:
-        if time.time() - AVAILABLE_MODELS_CACHE_TIME < AVAILABLE_MODELS_CACHE_TTL:
-            return AVAILABLE_MODELS_CACHE
-    
-    url = user_config["comfyui"]["comfyui_url"] + "/object_info"
+
+    if AVAILABLE_MODELS_CACHE is not None and (time.time() - AVAILABLE_MODELS_CACHE_TIME) < AVAILABLE_MODELS_CACHE_TTL:
+        return AVAILABLE_MODELS_CACHE
+
+    config = load_config()
+    url = config["comfyui"]["comfyui_url"] + "/object_info"
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
@@ -59,8 +55,8 @@ def get_available_models() -> list:
 
 
 def cancel_current_job() -> str:
-    """Cancels the current running job on ComfyUI."""
-    url = user_config["comfyui"]["comfyui_url"] + "/interrupt"
+    config = load_config()
+    url = config["comfyui"]["comfyui_url"] + "/interrupt"
     response = requests.post(url)
     if response.status_code == 200:
         return "Cancelled"
@@ -87,9 +83,9 @@ def generate_image(
     model_param: Optional[str] = "ckpt_name",
     model: Optional[str] = "None",
 ) -> None:
-    """Generates an image using the Comfy API with configurable workflow settings."""
+    config = load_config()
     try:
-        api = ComfyApiWrapper(user_config["comfyui"]["comfyui_url"])
+        api = ComfyApiWrapper(config["comfyui"]["comfyui_url"])
         wf = ComfyWorkflowWrapper(workflow_path)
 
         wf.set_node_param(seed_node, seed_param, random.getrandbits(32))
@@ -102,7 +98,7 @@ def generate_image(
                 else "CR Aspect Ratio"
             ),
             "width",
-            user_config["comfyui"]["width"],
+            config["comfyui"]["width"],
         )
         wf.set_node_param(
             (
@@ -111,7 +107,7 @@ def generate_image(
                 else "CR Aspect Ratio"
             ),
             "height",
-            user_config["comfyui"]["height"],
+            config["comfyui"]["height"],
         )
 
         wf.set_node_param(model_node, model_param, model)
@@ -122,7 +118,7 @@ def generate_image(
 
         for _, image_data in results.items():
             output_path = os.path.join(
-                user_config["comfyui"]["output_dir"], f"{file_name}.png"
+                config["comfyui"]["output_dir"], f"{file_name}.png"
             )
             with open(output_path, "wb+") as f:
                 f.write(image_data)
@@ -134,10 +130,12 @@ def generate_image(
         logger.error("Failed to generate image for UID: %s. Error: %s", file_name, e)
         raise
 
+
 def select_model(model: str) -> tuple[str, str]:
-    use_flux = get_bool(user_config, "comfyui", "flux", False)
-    only_flux = get_bool(user_config, "comfyui", "only_flux", False)
-    use_qwen = get_bool(user_config, "comfyui", "qwen", False)
+    config = load_config()
+    use_flux = get_bool(config, "comfyui", "flux", False)
+    only_flux = get_bool(config, "comfyui", "only_flux", False)
+    use_qwen = get_bool(config, "comfyui", "qwen", False)
 
     if model == "Random Image Model":
         available_workflows = []
@@ -147,10 +145,10 @@ def select_model(model: str) -> tuple[str, str]:
             available_workflows.append("FLUX")
         if use_qwen:
             available_workflows.append("Qwen")
-        
+
         if not available_workflows:
             available_workflows.append("SDXL")
-        
+
         selected_workflow = random.choice(available_workflows)
     elif "flux" in model.lower():
         selected_workflow = "FLUX"
@@ -161,25 +159,23 @@ def select_model(model: str) -> tuple[str, str]:
 
     if model == "Random Image Model":
         if selected_workflow == "FLUX":
-            valid_models = user_config["comfyui:flux"]["models"].split(",")
+            valid_models = [m.strip() for m in config["comfyui:flux"]["models"].split(",") if m.strip()]
         elif selected_workflow == "Qwen":
-            valid_models = user_config["comfyui:qwen"]["models"].split(",")
+            valid_models = [m.strip() for m in config["comfyui:qwen"]["models"].split(",") if m.strip()]
         else:
-            available_model_list = user_config["comfyui"]["models"].split(",")
+            available_model_list = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
             valid_models = list(set(get_available_models()) & set(available_model_list))
             if not valid_models:
                 valid_models = available_model_list
         if not valid_models:
-            fallback_models = user_config["comfyui"]["models"].split(",")
-            valid_models = [fallback_models[0].strip()] if fallback_models else ["sd_xl_base_1.0.safetensors"]
+            fallback_models = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
+            valid_models = fallback_models[:1] if fallback_models else ["sd_xl_base_1.0.safetensors"]
         model = random.choice(valid_models)
 
     return selected_workflow, model
 
 
 def create_image(prompt: str | None = None, model: str = "Random Image Model", topic: str = "") -> None:
-    """Generate an image with a chosen workflow (Random, FLUX*, or SDXL*)."""
-
     if prompt is None:
         from libs.generic import create_prompt_with_random_model
         config = load_config()
@@ -195,7 +191,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
 
     save_prompt(prompt, topic)
     selected_workflow, model = select_model(model)
-    
+
     if selected_workflow == "FLUX":
         generate_image(
             file_name="image",
@@ -229,9 +225,10 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
 
     logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
 
+
 def get_queue_count() -> int:
-    """Fetches the current queue count from ComfyUI (pending + running jobs)."""
-    url = user_config["comfyui"]["comfyui_url"] + "/queue"
+    config = load_config()
+    url = config["comfyui"]["comfyui_url"] + "/queue"
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -243,9 +240,10 @@ def get_queue_count() -> int:
         logger.error("Error fetching queue count: %s", e)
         return 0
 
+
 def get_queue_details() -> list:
-    """Fetches detailed queue information including model names and prompts."""
-    url = user_config["comfyui"]["comfyui_url"] + "/queue"
+    config = load_config()
+    url = config["comfyui"]["comfyui_url"] + "/queue"
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -256,12 +254,12 @@ def get_queue_details() -> list:
                 prompt_data = job[2]
                 model = "Unknown"
                 prompt = "No prompt"
-                
+
                 for node in prompt_data.values():
                     if node.get("class_type") in ["CheckpointLoaderSimple", "UnetLoaderGGUFAdvancedDisTorchMultiGPU"]:
-                        model = node["inputs"].get("ckpt_name", "Unknown")
+                        model = node["inputs"].get("ckpt_name", node["inputs"].get("unet_name", "Unknown"))
                         break
-                
+
                 for node in prompt_data.values():
                     class_type = node.get("class_type", "")
                     if "CLIPTextEncode" in class_type and "text" in node["inputs"]:
@@ -270,10 +268,11 @@ def get_queue_details() -> list:
                         if 'positive' in title or 'prompt' in title:
                             prompt = node["inputs"]["text"]
                             break
-                
+
+                model_display = model.split(".")[0] if model != "Unknown" else model
                 jobs.append({
                     "id": job[0],
-                    "model": model.split(".")[0] if model != "Unknown" else model,
+                    "model": model_display,
                     "prompt": prompt
                 })
         return jobs

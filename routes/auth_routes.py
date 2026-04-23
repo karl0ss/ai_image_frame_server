@@ -19,9 +19,17 @@ def is_safe_url(target):
 def login():
     next_url = request.args.get("next") if request.method == "GET" else request.form.get("next")
 
+    if next_url:
+        from urllib.parse import urlparse
+        parsed = urlparse(next_url)
+        if parsed.scheme and parsed.scheme not in ("http", "https"):
+            next_url = None
+        if ".." in (next_url or ""):
+            next_url = None
+
     if request.method == "POST":
         stored_value = user_config["frame"]["password_for_auth"]
-        submitted_password = request.form["password"]
+        submitted_password = request.form.get("password", "")
         if submitted_password:
             input_hash = hash_password(submitted_password)
             if len(stored_value) == 64 and all(c in "0123456789abcdef" for c in stored_value.lower()):
@@ -34,5 +42,5 @@ def login():
                     return redirect(next_url)
                 return redirect(url_for("create_routes.create_image_page"))
         return redirect(url_for("auth_routes.login", next=next_url))
-    
+
     return render_template("login.html", next=next_url)

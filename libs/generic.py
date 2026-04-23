@@ -1,4 +1,5 @@
 import configparser
+import fcntl
 import hashlib
 import hmac
 import json
@@ -9,7 +10,10 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
+import uuid
+from collections import OrderedDict
 from datetime import datetime
 
 from PIL import Image
@@ -27,9 +31,66 @@ SYSTEM_PROMPT = (
     "Keep the prompt concise, no extra commentary or formatting."
 )
 
+_png_details_cache: OrderedDict[str, tuple[float, dict]] = OrderedDict()
+_png_cache_lock = threading.Lock()
+_PNG_CACHE_MAX = 256
+_PNG_CACHE_TTL = 30.0
+
+
+class ConfigSingleton:
+    _config = None
+    _mtime = 0.0
+    _path = "./user_config.cfg"
+    _lock = threading.Lock()
+
+    @classmethod
+    def get(cls) -> configparser.ConfigParser:
+        with cls._lock:
+            config_path = cls._path
+            try:
+                current_mtime = os.path.getmtime(config_path)
+            except OSError:
+                current_mtime = 0
+
+            if cls._config is None or current_mtime > cls._mtime:
+                cfg = configparser.ConfigParser()
+                read_files = cfg.read(config_path)
+                if read_files:
+                    cls._config = cfg
+                    cls._mtime = current_mtime
+                    logger.debug("Configuration loaded/reloaded from %s", config_path)
+                elif cls._config is None:
+                    cls._config = cfg
+                    cls._mtime = current_mtime
+                    logger.warning("Configuration file %s could not be read", config_path)
+            return cls._config
+
+    @classmethod
+    def reset(cls):
+        cls._config = None
+        cls._mtime = 0.0
+
+
+def load_config() -> configparser.ConfigParser:
+    sample_path = "./user_config.cfg.sample"
+
+    if not os.path.exists(ConfigSingleton._path):
+        if os.path.exists(sample_path):
+            shutil.copy(sample_path, ConfigSingleton._path)
+            logging.info("Configuration file copied from sample.")
+        else:
+            logging.error("Neither user_config.cfg nor user_config.cfg.sample found.")
+            sys.exit(1)
+
+    return ConfigSingleton.get()
+
+
+def get_bool(config: configparser.ConfigParser, section: str, key: str, default: bool = False) -> bool:
+    value = config.get(section, key, fallback=str(default)).lower()
+    return value in ("true", "1", "yes", "on")
+
 
 def extract_prompt(text: str) -> str:
-    """Extract a prompt from LLM response text by stripping quotes and extracting content."""
     text = text.strip('"')
     match = re.search(r'"([^"]+)"', text)
     if not match:
@@ -38,35 +99,54 @@ def extract_prompt(text: str) -> str:
         text = match.group(1)
     return text.strip()
 
+
+def _read_last_lines(filepath: str, count: int) -> list[str]:
+    lines: list[str] = []
+    try:
+        with open(filepath, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            file_size = f.tell()
+            if file_size == 0:
+                return lines
+            pos = file_size
+            found = 0
+            while pos > 0 and found < count:
+                read_size = min(4096, pos)
+                pos -= read_size
+                f.seek(pos)
+                chunk = f.read(read_size)
+                found += chunk.count(b"\n")
+            f.seek(max(0, pos))
+            all_lines = f.read().decode("utf-8", errors="replace").splitlines()
+            lines = all_lines[-count:]
+    except FileNotFoundError:
+        pass
+    return lines
+
+
 def load_recent_prompts(count=7):
     recent_prompts = []
-
-    try:
-        with open(LOG_FILE, "r") as f:
-            lines = f.readlines()
-            for line in lines[-count:]:
-                data = json.loads(line.strip())
-                recent_prompts.append(data["prompt"])
-    except FileNotFoundError:
-        pass  # No prompts yet
-
+    lines = _read_last_lines(LOG_FILE, count)
+    for line in lines:
+        try:
+            data = json.loads(line.strip())
+            recent_prompts.append(data["prompt"])
+        except (json.JSONDecodeError, KeyError):
+            continue
     return recent_prompts
 
 
 def load_recent_topics(count=5):
     recent_topics = []
-
-    try:
-        with open(LOG_FILE, "r") as f:
-            lines = f.readlines()
-            for line in lines[-count:]:
-                data = json.loads(line.strip())
-                topic = data.get("topic", "")
-                if topic:
-                    recent_topics.append(topic)
-    except FileNotFoundError:
-        pass  # No prompts yet
-
+    lines = _read_last_lines(LOG_FILE, count)
+    for line in lines:
+        try:
+            data = json.loads(line.strip())
+            topic = data.get("topic", "")
+            if topic:
+                recent_topics.append(topic)
+        except (json.JSONDecodeError, KeyError):
+            continue
     return recent_topics
 
 
@@ -76,124 +156,170 @@ def save_prompt(prompt, topic=""):
         f.write(json.dumps(entry) + "\n")
 
 
-def get_bool(config: configparser.ConfigParser, section: str, key: str, default: bool = False) -> bool:
-    """Parse a boolean value from ConfigParser (which stores everything as strings).
-    
-    Handles both 'True'/'False' (Python-style) and 'true'/'false' (lowercase) formats.
-    """
-    value = config.get(section, key, fallback=str(default)).lower()
-    return value == "true"
-
-
 def hash_password(password: str) -> str:
-    """Hash a password using SHA-256."""
     return hashlib.sha256(password.encode()).hexdigest()
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
-    """Verify a password against a stored hash using constant-time comparison."""
     input_hash = hash_password(password)
     return hmac.compare_digest(input_hash, stored_hash)
 
 
-def load_config() -> configparser.ConfigParser:
-    """Loads user configuration from ./user_config.cfg. If it doesn't exist, copies from user_config.cfg.sample."""
-    user_config = configparser.ConfigParser()
-    config_path = "./user_config.cfg"
-    sample_path = "./user_config.cfg.sample"
+def _file_lock_path(filepath: str) -> str:
+    return filepath + ".lock"
 
-    if not os.path.exists(config_path):
-        if os.path.exists(sample_path):
-            shutil.copy(sample_path, config_path)
-            logging.info("Configuration file copied from sample.")
-        else:
-            logging.error("Neither user_config.cfg nor user_config.cfg.sample found.")
-            sys.exit(1)
 
+def _acquire_lock(lock_path: str):
+    lock_fd = open(lock_path, "w")
     try:
-        user_config.read(config_path)
-        logging.debug("Configuration loaded successfully.")
-        return user_config
-    except KeyError as e:
-        logging.error(f"Missing configuration key: {e}")
-        sys.exit(1)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+    except Exception:
+        lock_fd.close()
+        raise
+    return lock_fd
+
+
+def _release_lock(lock_fd):
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+    finally:
+        lock_fd.close()
 
 
 def rename_image(config=None, fav_file=None) -> str | None:
-    """Renames 'image.png' in the output folder to a timestamped filename if it exists."""
-    cfg = config or user_config
+    cfg = load_config() if config is None else config
     fav_path = fav_file or favourites_file
     output_dir = cfg["comfyui"]["output_dir"]
     old_path = os.path.join(output_dir, "image.png")
 
-    if os.path.exists(old_path):
-        new_filename = f"{str(time.time())}.png"
-        new_path = os.path.join(output_dir, new_filename)
+    if not os.path.exists(old_path):
+        logger.info("No image.png found.")
+        return None
 
-        temp_favourites_path = fav_path + ".tmp"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    short_uuid = uuid.uuid4().hex[:6]
+    new_filename = f"{timestamp}_{short_uuid}.png"
+    new_path = os.path.join(output_dir, new_filename)
+
+    lock_fd = None
+    try:
+        lock_fd = _acquire_lock(_file_lock_path(fav_path))
         if os.path.exists(fav_path):
             with open(fav_path, 'r') as f:
                 favourites = json.load(f)
             if "image.png" in favourites:
                 favourites.remove("image.png")
                 favourites.append(new_filename)
+                temp_favourites_path = fav_path + ".tmp"
                 with open(temp_favourites_path, 'w') as f:
                     json.dump(favourites, f)
                 os.replace(temp_favourites_path, fav_path)
 
         os.rename(old_path, new_path)
         generate_thumbnail(new_path)
-        logger.info(f"Renamed 'image.png' to '{new_filename}'")
+        logger.info("Renamed 'image.png' to '%s'", new_filename)
         return new_filename
-    else:
-        logger.info("No image.png found.")
-        return None
+    finally:
+        if lock_fd is not None:
+            _release_lock(lock_fd)
 
 
 def get_favourites() -> list[str]:
-    """Loads and returns the list of favourited images."""
     if not os.path.exists(favourites_file):
         return []
-    with open(favourites_file, 'r') as f:
-        return json.load(f)
+    lock_fd = _acquire_lock(_file_lock_path(favourites_file))
+    try:
+        with open(favourites_file, 'r') as f:
+            return json.load(f)
+    finally:
+        _release_lock(lock_fd)
 
 
 def save_favourites(favourites: list[str]) -> None:
-    """Saves the list of favourited images atomically using os.replace()."""
-    temp_path = favourites_file + ".tmp"
-    with open(temp_path, 'w') as f:
-        json.dump(favourites, f)
-    os.replace(temp_path, favourites_file)
+    lock_fd = _acquire_lock(_file_lock_path(favourites_file))
+    try:
+        temp_path = favourites_file + ".tmp"
+        with open(temp_path, 'w') as f:
+            json.dump(favourites, f)
+        os.replace(temp_path, favourites_file)
+    finally:
+        _release_lock(lock_fd)
+
+
+def _find_model_from_metadata(data: dict) -> str:
+    for node in data.values():
+        if not isinstance(node, dict):
+            continue
+        inputs = node.get("inputs", {})
+        if "unet_name" in inputs:
+            return inputs["unet_name"].split(".")[0]
+        if "ckpt_name" in inputs:
+            return inputs["ckpt_name"]
+    return "unknown"
 
 
 def get_details_from_png(path):
     try:
+        mtime = os.path.getmtime(path)
+        with _png_cache_lock:
+            if path in _png_details_cache:
+                cached_mtime, cached_data = _png_details_cache[path]
+                if mtime <= cached_mtime:
+                    return cached_data
+
         date = datetime.fromtimestamp(os.path.getctime(path)).strftime("%d-%m-%Y")
         with Image.open(path) as img:
             data = json.loads(img.info["prompt"])
-            prompt = data['6']['inputs']['text']
-            if '38' in data and 'unet_name' in data['38']['inputs']:
-                model = data['38']['inputs']['unet_name'].split(".")[0]
-            elif '4' in data and 'ckpt_name' in data['4']['inputs']:
-                model = data['4']['inputs']['ckpt_name']
-            elif '80' in data and 'unet_name' in data['80']['inputs']:
-                model = data['80']['inputs']['unet_name'].split(".")[0]
-            else:
-                model = "unknown"
-            return {"p": prompt, "m": model, "d": date}
+            prompt = ""
+            for node in data.values():
+                if not isinstance(node, dict):
+                    continue
+                class_type = node.get("class_type", "")
+                inputs = node.get("inputs", {})
+                text_val = inputs.get("text", "")
+                if isinstance(text_val, list):
+                    continue
+                if class_type in ("ttN text",) or "text" in class_type.lower():
+                    meta = node.get("_meta", {})
+                    title = meta.get("title", "").lower()
+                    if "positive" in title or "prompt" in title:
+                        prompt = text_val
+                        break
+                if "CLIPTextEncode" in class_type:
+                    meta = node.get("_meta", {})
+                    title = meta.get("title", "").lower()
+                    if "positive" in title or "prompt" in title:
+                        if isinstance(text_val, str):
+                            prompt = text_val
+                            break
+            if not prompt:
+                for key_node in data:
+                    if isinstance(data[key_node], dict):
+                        text_val = data[key_node].get("inputs", {}).get("text", "")
+                        if isinstance(text_val, str) and text_val:
+                            prompt = text_val
+                            break
+            model = _find_model_from_metadata(data)
+            result = {"p": prompt, "m": model, "d": date}
+
+        with _png_cache_lock:
+            _png_details_cache[path] = (mtime, result)
+            if len(_png_details_cache) > _PNG_CACHE_MAX:
+                _png_details_cache.popitem(last=False)
+        return result
     except Exception as e:
-        logger.warning(f"Error reading metadata from {path}: {e}")
+        logger.warning("Error reading metadata from %s: %s", path, e)
         return {"p": "", "m": "", "d": ""}
+
 
 def get_current_version():
     try:
-        # Run the command and capture the output
         result = subprocess.run(
-            ['bump-my-version', 'show', 'current_version'], 
-            stdout=subprocess.PIPE, 
+            ['bump-my-version', 'show', 'current_version'],
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,  # to get string output instead of bytes
-            check=True  # raises exception if command fails
+            text=True,
+            check=True
         )
         version = result.stdout.strip()
         return version
@@ -201,34 +327,36 @@ def get_current_version():
         logger.error("Error running bump-my-version: %s", e)
         return "unknown"
 
+
 def load_models_from_config():
     config = load_config()
-    
+
     use_flux = get_bool(config, "comfyui", "flux", False)
     if use_flux and "comfyui:flux" in config and "models" in config["comfyui:flux"]:
-        flux_models = config["comfyui:flux"]["models"].split(",")
+        flux_models = [m.strip() for m in config["comfyui:flux"]["models"].split(",") if m.strip()]
     else:
         flux_models = []
-    
-    sdxl_models = config["comfyui"]["models"].split(",")
-    
+
+    sdxl_models = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
+
     use_qwen = get_bool(config, "comfyui", "qwen", False)
     if use_qwen and "comfyui:qwen" in config and "models" in config["comfyui:qwen"]:
-        qwen_models = config["comfyui:qwen"]["models"].split(",")
+        qwen_models = [m.strip() for m in config["comfyui:qwen"]["models"].split(",") if m.strip()]
     else:
         qwen_models = []
-    
-    sorted_flux_models = sorted(flux_models, key=str.lower)
-    sorted_sdxl_models = sorted(sdxl_models, key=str.lower)
-    sorted_qwen_models = sorted(qwen_models, key=str.lower)
-    return sorted_sdxl_models, sorted_flux_models, sorted_qwen_models
+
+    return (
+        sorted(sdxl_models, key=str.lower),
+        sorted(flux_models, key=str.lower),
+        sorted(qwen_models, key=str.lower),
+    )
 
 
 def load_topics_from_config():
     config = load_config()
-    topics = config["comfyui"]["topics"].split(",")
-    sorted_topics = sorted(topics, key=str.lower)
-    return sorted_topics
+    topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
+    return sorted(topics, key=str.lower)
+
 
 def load_openrouter_models_from_config():
     config = load_config()
@@ -242,12 +370,14 @@ def load_openrouter_models_from_config():
         return configured_models, free_models
     return [], []
 
+
 def load_openwebui_models_from_config():
     config = load_config()
     if "openwebui" in config and "models" in config["openwebui"]:
         models = config["openwebui"]["models"].split(",")
         return sorted([model.strip() for model in models if model.strip()], key=str.lower)
     return []
+
 
 def load_ollama_models_from_config():
     config = load_config()
@@ -261,17 +391,15 @@ def load_ollama_models_from_config():
         return configured_models, cloud_models
     return [], []
 
+
 def load_prompt_models_from_config():
-    """Load and return a list of available prompt generation models (OpenWebUI, OpenRouter, and Ollama)."""
     config = load_config()
     prompt_models = []
 
-    # Add OpenWebUI models if configured
     if "openwebui" in config and "models" in config["openwebui"]:
         openwebui_models = config["openwebui"]["models"].split(",")
         prompt_models.extend([("openwebui", model.strip()) for model in openwebui_models if model.strip()])
 
-    # Add OpenRouter models if enabled and configured
     if get_bool(config, "openrouter", "enabled", False) and "models" in config["openrouter"]:
         openrouter_models = config["openrouter"]["models"].split(",")
         prompt_models.extend([("openrouter", model.strip()) for model in openrouter_models if model.strip()])
@@ -292,12 +420,10 @@ def load_prompt_models_from_config():
 
 
 def build_user_content(topic: str = "random") -> tuple[str, str]:
-    """Build the user content string for prompt generation, including topic instructions and recent prompts avoidance."""
     config = load_config()
     topic_instruction = ""
     selected_topic = ""
     secondary_topic_instruction = ""
-    # Unique list of recent prompts
     recent_prompts = list(set(load_recent_prompts()))
     recent_topics = load_recent_topics()
 
@@ -307,22 +433,20 @@ def build_user_content(topic: str = "random") -> tuple[str, str]:
         if available_topics:
             selected_topic = random.choice(available_topics)
         elif topics:
-            selected_topic = random.choice(topics)  # Fallback if all recent
+            selected_topic = random.choice(topics)
     elif topic != "":
         selected_topic = topic
     else:
-        # Decide on whether to include a topic (e.g., 30% chance to include)
         topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
         available_topics = [t for t in topics if t not in recent_topics]
         if random.random() < 0.3 and available_topics:
             selected_topic = random.choice(available_topics)
         elif random.random() < 0.3 and topics:
-            selected_topic = random.choice(topics)  # Fallback
+            selected_topic = random.choice(topics)
 
     if selected_topic != "":
         topic_instruction = f" Incorporate the theme of '{selected_topic}' into the new prompt."
 
-    # Add secondary topic if configured and not empty
     secondary_topic = config["comfyui"].get("secondary_topic", "").strip()
     if secondary_topic:
         secondary_topic_instruction = f" Additionally incorporate the theme of '{secondary_topic}' into the new prompt."
@@ -338,52 +462,51 @@ def build_user_content(topic: str = "random") -> tuple[str, str]:
     return user_content, selected_topic
 
 
-def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
-    """Create a prompt using a randomly selected model from OpenWebUI, OpenRouter, or Ollama.
+def _call_prompt_service(service: str, model: str, full_prompt: str):
+    if service == "openwebui":
+        from libs.openwebui import create_prompt_on_openwebui
+        return create_prompt_on_openwebui(full_prompt, "", model)
+    elif service == "openrouter":
+        from libs.openrouter import create_prompt_on_openrouter
+        return create_prompt_on_openrouter(full_prompt, "", model)
+    elif service == "ollama":
+        from libs.ollama import create_prompt_on_ollama
+        return create_prompt_on_ollama(full_prompt, "", model)
+    return None
 
-    If OpenWebUI fails, it will retry once. If it fails again, it will fallback to another service.
-    """
+
+def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
     prompt_models = load_prompt_models_from_config()
 
     if not prompt_models:
         logging.warning("No prompt generation models configured.")
         return None, ""
 
-    # Randomly select a model
     service, model = random.choice(prompt_models)
 
-    # Import here to avoid circular imports
-    from libs.openwebui import create_prompt_on_openwebui
-    from libs.openrouter import create_prompt_on_openrouter
-    from libs.ollama import create_prompt_on_ollama
-
     def _fallback_to_other_services(excluded_service, topic, base_prompt):
-        """Try fallback to any available service other than the excluded one."""
         other_models = [m for m in prompt_models if m[0] != excluded_service]
         if other_models:
             fb_service, fb_model = random.choice(other_models)
             user_content, selected_topic = build_user_content(topic)
             full_prompt = base_prompt + "\n\n" + user_content
-            if fb_service == "openrouter":
-                return create_prompt_on_openrouter(full_prompt, "", fb_model), selected_topic
-            elif fb_service == "ollama":
-                return create_prompt_on_ollama(full_prompt, "", fb_model), selected_topic
-            elif fb_service == "openwebui":
-                return create_prompt_on_openwebui(full_prompt, "", fb_model), selected_topic
-        logging.error(f"No fallback models available (excluded: {excluded_service}).")
+            result = _call_prompt_service(fb_service, fb_model, full_prompt)
+            if result is not None:
+                return result, selected_topic
+        logging.error("No fallback models available (excluded: %s).", excluded_service)
         return "A colorful abstract composition", ""
 
     if service == "openwebui":
         try:
-            logging.info(f"Attempting to generate prompt with OpenWebUI using model: {model}")
+            logging.info("Attempting to generate prompt with OpenWebUI using model: %s", model)
             user_content, selected_topic = build_user_content(topic)
             full_prompt = base_prompt + "\n\n" + user_content
-            result = create_prompt_on_openwebui(full_prompt, "", model)
+            result = _call_prompt_service("openwebui", model, full_prompt)
             if result:
                 return result, selected_topic
 
             logging.warning("First OpenWebUI attempt failed. Retrying...")
-            result = create_prompt_on_openwebui(full_prompt, "", model)
+            result = _call_prompt_service("openwebui", model, full_prompt)
             if result:
                 return result, selected_topic
 
@@ -391,7 +514,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             return _fallback_to_other_services("openwebui", topic, base_prompt)
 
         except Exception as e:
-            logging.error(f"Error with OpenWebUI: {e}")
+            logging.error("Error with OpenWebUI: %s", e)
             logging.warning("OpenWebUI exception. Falling back to other services...")
             return _fallback_to_other_services("openwebui", topic, base_prompt)
 
@@ -401,7 +524,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             full_prompt = base_prompt + "\n\n" + user_content
             return create_prompt_on_openrouter(full_prompt, "", model), selected_topic
         except Exception as e:
-            logging.error(f"Error with OpenRouter: {e}")
+            logging.error("Error with OpenRouter: %s", e)
             return _fallback_to_other_services("openrouter", topic, base_prompt)
 
     elif service == "ollama":
@@ -410,10 +533,13 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             full_prompt = base_prompt + "\n\n" + user_content
             return create_prompt_on_ollama(full_prompt, "", model), selected_topic
         except Exception as e:
-            logging.error(f"Error with Ollama: {e}")
+            logging.error("Error with Ollama: %s", e)
             return _fallback_to_other_services("ollama", topic, base_prompt)
 
 
 user_config = load_config()
-output_folder = user_config["comfyui"]["output_dir"]
 favourites_file = "./favourites.json"
+
+
+def _get_output_folder():
+    return load_config()["comfyui"]["output_dir"]

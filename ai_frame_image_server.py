@@ -75,5 +75,16 @@ if should_schedule:
 
 output_dir = user_config["comfyui"]["output_dir"].rstrip("/")
 os.makedirs(output_dir, exist_ok=True)
+
 debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
-app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=debug)
+if debug:
+    logger.info("Running in debug mode with Flask dev server")
+    app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=True)
+else:
+    try:
+        from waitress import serve
+        logger.info("Starting production server on port %s", user_config["frame"]["port"])
+        serve(app, host="0.0.0.0", port=user_config["frame"]["port"])
+    except ImportError:
+        logger.warning("waitress not installed, falling back to Flask dev server")
+        app.run(host="0.0.0.0", port=user_config["frame"]["port"], debug=False)
