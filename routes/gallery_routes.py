@@ -31,6 +31,9 @@ def get_favourites_route():
 @bp.route("/favourites/toggle", methods=["POST"])
 def toggle_favourite():
     data = request.get_json()
+    if data is None:
+        return jsonify({"status": "error", "message": "Invalid JSON"}), 400
+    
     filename = data.get("filename")
     if not filename or "/" in filename or "\\" in filename or ".." in filename:
         return jsonify({"status": "error", "message": "Invalid filename"}), 400
