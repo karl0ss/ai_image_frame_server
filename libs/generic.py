@@ -236,15 +236,17 @@ def _atomic_write(filepath: str, data: str) -> None:
     temp_path = filepath + ".tmp"
     with open(temp_path, 'w') as f:
         f.write(data)
-    for attempt in range(5):
-        try:
-            os.replace(temp_path, filepath)
-            return
-        except OSError as e:
-            if e.errno == 16 and attempt < 4:
-                import time
-                time.sleep(0.1 * (attempt + 1))
-                continue
+    try:
+        os.replace(temp_path, filepath)
+    except OSError as e:
+        if e.errno == 16:
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+            with open(filepath, 'w') as f:
+                f.write(data)
+        else:
             if os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
