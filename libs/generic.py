@@ -210,10 +210,7 @@ def rename_image(config=None, fav_file=None) -> str | None:
             if "image.png" in favourites:
                 favourites.remove("image.png")
                 favourites.append(new_filename)
-                temp_favourites_path = fav_path + ".tmp"
-                with open(temp_favourites_path, 'w') as f:
-                    json.dump(favourites, f)
-                os.replace(temp_favourites_path, fav_path)
+                _atomic_write(fav_path, json.dumps(favourites))
 
         os.rename(old_path, new_path)
         generate_thumbnail(new_path)
@@ -235,13 +232,31 @@ def get_favourites() -> list[str]:
         _release_lock(lock_fd)
 
 
+def _atomic_write(filepath: str, data: str) -> None:
+    temp_path = filepath + ".tmp"
+    with open(temp_path, 'w') as f:
+        f.write(data)
+    for attempt in range(5):
+        try:
+            os.replace(temp_path, filepath)
+            return
+        except OSError as e:
+            if e.errno == 16 and attempt < 4:
+                import time
+                time.sleep(0.1 * (attempt + 1))
+                continue
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+            raise
+
+
 def save_favourites(favourites: list[str]) -> None:
     lock_fd = _acquire_lock(_file_lock_path(favourites_file))
     try:
-        temp_path = favourites_file + ".tmp"
-        with open(temp_path, 'w') as f:
-            json.dump(favourites, f)
-        os.replace(temp_path, favourites_file)
+        _atomic_write(favourites_file, json.dumps(favourites))
     finally:
         _release_lock(lock_fd)
 
