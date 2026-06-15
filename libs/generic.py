@@ -124,7 +124,7 @@ def _read_last_lines(filepath: str, count: int) -> list[str]:
     return lines
 
 
-def load_recent_prompts(count=7):
+def load_recent_prompts(count=20):
     recent_prompts = []
     lines = _read_last_lines(LOG_FILE, count)
     for line in lines:
@@ -436,12 +436,13 @@ def load_prompt_models_from_config():
     return prompt_models
 
 
-def build_user_content(topic: str = "random") -> tuple[str, str]:
+def build_user_content(topic: str = "random", recent_prompts: list[str] | None = None) -> tuple[str, str]:
     config = load_config()
     topic_instruction = ""
     selected_topic = ""
     secondary_topic_instruction = ""
-    recent_prompts = list(set(load_recent_prompts()))
+    if recent_prompts is None:
+        recent_prompts = list(set(load_recent_prompts()))
     recent_topics = load_recent_topics()
 
     if topic == "random":
@@ -492,6 +493,14 @@ def _call_prompt_service(service: str, model: str, full_prompt: str):
     return None
 
 
+def _is_duplicate_prompt(prompt: str, recent_prompts: list[str]) -> bool:
+    normalized = prompt.strip().lower().rstrip("\n")
+    for rp in recent_prompts:
+        if normalized == rp.strip().lower().rstrip("\n"):
+            return True
+    return False
+
+
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
     prompt_models = load_prompt_models_from_config()
 
@@ -499,13 +508,16 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
         logging.warning("No prompt generation models configured.")
         return None, ""
 
+    recent_prompts = list(set(load_recent_prompts()))
+    max_attempts = 3
+
     service, model = random.choice(prompt_models)
 
     def _fallback_to_other_services(excluded_service, topic, base_prompt):
         other_models = [m for m in prompt_models if m[0] != excluded_service]
         if other_models:
             fb_service, fb_model = random.choice(other_models)
-            user_content, selected_topic = build_user_content(topic)
+            user_content, selected_topic = build_user_content(topic, recent_prompts)
             full_prompt = base_prompt + "\n\n" + user_content
             result = _call_prompt_service(fb_service, fb_model, full_prompt)
             if result is not None:
@@ -513,45 +525,61 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
         logging.error("No fallback models available (excluded: %s).", excluded_service)
         return "A colorful abstract composition", ""
 
-    if service == "openwebui":
-        try:
-            logging.info("Attempting to generate prompt with OpenWebUI using model: %s", model)
-            user_content, selected_topic = build_user_content(topic)
-            full_prompt = base_prompt + "\n\n" + user_content
-            result = _call_prompt_service("openwebui", model, full_prompt)
-            if result:
-                return result, selected_topic
+    def _generate_once():
+        nonlocal service, model
+        service, model = random.choice(prompt_models)
 
-            logging.warning("First OpenWebUI attempt failed. Retrying...")
-            result = _call_prompt_service("openwebui", model, full_prompt)
-            if result:
-                return result, selected_topic
+        if service == "openwebui":
+            try:
+                logging.info("Attempting to generate prompt with OpenWebUI using model: %s", model)
+                user_content, selected_topic = build_user_content(topic, recent_prompts)
+                full_prompt = base_prompt + "\n\n" + user_content
+                result = _call_prompt_service("openwebui", model, full_prompt)
+                if result:
+                    return result, selected_topic
 
-            logging.warning("Second OpenWebUI attempt failed. Falling back to other services...")
-            return _fallback_to_other_services("openwebui", topic, base_prompt)
+                logging.warning("First OpenWebUI attempt failed. Retrying...")
+                result = _call_prompt_service("openwebui", model, full_prompt)
+                if result:
+                    return result, selected_topic
 
-        except Exception as e:
-            logging.error("Error with OpenWebUI: %s", e)
-            logging.warning("OpenWebUI exception. Falling back to other services...")
-            return _fallback_to_other_services("openwebui", topic, base_prompt)
+                logging.warning("Second OpenWebUI attempt failed. Falling back to other services...")
+                return _fallback_to_other_services("openwebui", topic, base_prompt)
 
-    elif service == "openrouter":
-        try:
-            user_content, selected_topic = build_user_content(topic)
-            full_prompt = base_prompt + "\n\n" + user_content
-            return create_prompt_on_openrouter(full_prompt, "", model), selected_topic
-        except Exception as e:
-            logging.error("Error with OpenRouter: %s", e)
-            return _fallback_to_other_services("openrouter", topic, base_prompt)
+            except Exception as e:
+                logging.error("Error with OpenWebUI: %s", e)
+                logging.warning("OpenWebUI exception. Falling back to other services...")
+                return _fallback_to_other_services("openwebui", topic, base_prompt)
 
-    elif service == "ollama":
-        try:
-            user_content, selected_topic = build_user_content(topic)
-            full_prompt = base_prompt + "\n\n" + user_content
-            return create_prompt_on_ollama(full_prompt, "", model), selected_topic
-        except Exception as e:
-            logging.error("Error with Ollama: %s", e)
-            return _fallback_to_other_services("ollama", topic, base_prompt)
+        elif service == "openrouter":
+            try:
+                user_content, selected_topic = build_user_content(topic, recent_prompts)
+                full_prompt = base_prompt + "\n\n" + user_content
+                return create_prompt_on_openrouter(full_prompt, "", model), selected_topic
+            except Exception as e:
+                logging.error("Error with OpenRouter: %s", e)
+                return _fallback_to_other_services("openrouter", topic, base_prompt)
+
+        elif service == "ollama":
+            try:
+                user_content, selected_topic = build_user_content(topic, recent_prompts)
+                full_prompt = base_prompt + "\n\n" + user_content
+                return create_prompt_on_ollama(full_prompt, "", model), selected_topic
+            except Exception as e:
+                logging.error("Error with Ollama: %s", e)
+                return _fallback_to_other_services("ollama", topic, base_prompt)
+
+        return None, ""
+
+    for attempt in range(max_attempts):
+        result, selected_topic = _generate_once()
+        if result and not _is_duplicate_prompt(result, recent_prompts):
+            return result, selected_topic
+        if attempt < max_attempts - 1:
+            logging.warning("Generated duplicate prompt (attempt %d/%d), retrying...", attempt + 1, max_attempts)
+
+    logging.warning("All %d attempts produced duplicate prompts.", max_attempts)
+    return None, ""
 
 
 user_config = load_config()
