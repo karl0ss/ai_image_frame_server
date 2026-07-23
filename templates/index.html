@@ -92,6 +92,9 @@
     <div class="button-group">
         <a href="/images" class="button-link">Archive</a>
         <a href="/create_image" class="button-link">Create Image</a>
+        {% if selected %}
+        <button class="button-link" id="clear-selection-btn" onclick="clearSelection()">Clear Selection</button>
+        {% endif %}
     </div>
     {% endif %}
     {% else %}
@@ -101,8 +104,24 @@
 
 {% block scripts %}
     <script>
+        function clearSelection() {
+            fetch('/select-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: null })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            });
+        }
+
+        {% if not selected %}
         setInterval(() => {
             location.reload();
-        }, {{ reload_interval }});  // Refresh every X ms
+        }, {{ reload_interval }});
+        {% endif %}
     </script>
 {% endblock %}

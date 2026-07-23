@@ -584,6 +584,26 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
 
 user_config = load_config()
 favourites_file = "./favourites.json"
+selected_image_file = "./selected_image.json"
+
+
+def get_selected_image() -> str | None:
+    if not os.path.exists(selected_image_file):
+        return None
+    try:
+        with open(selected_image_file, "r") as f:
+            data = json.load(f)
+            return data.get("filename") or None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def set_selected_image(filename: str | None) -> None:
+    if filename is None:
+        if os.path.exists(selected_image_file):
+            os.remove(selected_image_file)
+        return
+    _atomic_write(selected_image_file, json.dumps({"filename": filename}))
 
 
 def _get_output_folder():

@@ -113,6 +113,32 @@
             cursor: pointer;
         }
 
+        .select-button {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            background: #444;
+            color: white;
+            transition: background 0.3s;
+        }
+
+        .select-button:hover {
+            background: #666;
+        }
+
+        .select-button.selected {
+            background: #2a6b2a;
+        }
+
+        .select-button.selected:hover {
+            background: #3a8a3a;
+        }
+
         @media (max-width: 600px) {
             body {
                 padding: 1rem;
@@ -169,6 +195,7 @@
         <span class="arrow left" onclick="prevImage()">&#10094;</span>
         <img id="lightbox-img" src="" />
         <p id="lightbox-prompt"></p>
+        <button class="select-button" id="select-button" onclick="toggleSelectImage()">Set as Displayed</button>
         <span class="arrow right" onclick="nextImage()">&#10095;</span>
     </div>
 {% endblock %}
@@ -180,6 +207,7 @@
                 { "filename": "{{ image.filename }}", "favourited": {{ 'true' if image.favourited else 'false' }} }{% if not loop.last %},{% endif %}
             {% endfor %}
         ]`);
+        let selectedFilename = {{ ('"' + selected + '"') if selected else 'null' }};
     </script>
 
     <script>
@@ -304,6 +332,7 @@
 
             document.getElementById("lightbox-img").src = fullsrc;
             updateFavouriteHeart(isFavourited);
+            updateSelectButton(filename);
 
             if (detailsCache[filename]) {
                 document.getElementById("lightbox-prompt").textContent =
@@ -325,6 +354,51 @@
                     .catch(() => {
                         document.getElementById("lightbox-prompt").textContent = "Couldn’t load details.";
                     });
+            }
+        }
+
+        function updateSelectButton(filename) {
+            const btn = document.getElementById('select-button');
+            if (filename === selectedFilename) {
+                btn.textContent = 'Displayed';
+                btn.classList.add('selected');
+            } else {
+                btn.textContent = 'Set as Displayed';
+                btn.classList.remove('selected');
+            }
+        }
+
+        function toggleSelectImage() {
+            const images = getGalleryImages();
+            const imgEl = images[currentIndex];
+            const filename = imgEl.dataset.filename;
+
+            if (filename === selectedFilename) {
+                fetch('/select-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: null })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        selectedFilename = null;
+                        updateSelectButton(filename);
+                    }
+                });
+            } else {
+                fetch('/select-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        selectedFilename = filename;
+                        updateSelectButton(filename);
+                    }
+                });
             }
         }
 
