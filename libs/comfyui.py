@@ -112,17 +112,25 @@ def generate_image(
 
         wf.set_node_param(model_node, model_param, model)
 
-        logger.debug("Generating image: %s", file_name)
-        results = api.queue_and_wait_images(wf, save_node)
-        rename_image()
+        # The whole archive -> render -> write of the shared image.png must be
+        # one critical section, otherwise concurrent jobs race on the same
+        # file: a job archiving while another is mid-render sees no image.png,
+        # skips archiving, and its output later overwrites the newer image --
+        # losing/incorrectly archiving images. Serializing here guarantees
+        # every finished image is archived exactly once.
+        from libs.generic import _image_write_lock
 
-        for _, image_data in results.items():
-            output_path = os.path.join(
-                config["comfyui"]["output_dir"], f"{file_name}.png"
-            )
-            with open(output_path, "wb+") as f:
-                f.write(image_data)
-            generate_thumbnail(output_path)
+        logger.debug("Generating image: %s", file_name)
+        with _image_write_lock:
+            rename_image()
+            results = api.queue_and_wait_images(wf, save_node)
+            for _, image_data in results.items():
+                output_path = os.path.join(
+                    config["comfyui"]["output_dir"], f"{file_name}.png"
+                )
+                with open(output_path, "wb+") as f:
+                    f.write(image_data)
+                generate_thumbnail(output_path)
 
         logger.debug("Image generated successfully for UID: %s", file_name)
 

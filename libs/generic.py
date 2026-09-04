@@ -36,6 +36,8 @@ _png_cache_lock = threading.Lock()
 _PNG_CACHE_MAX = 256
 _PNG_CACHE_TTL = 30.0
 
+_image_write_lock = threading.RLock()
+
 
 class ConfigSingleton:
     _config = None
@@ -192,33 +194,35 @@ def rename_image(config=None, fav_file=None) -> str | None:
     output_dir = cfg["comfyui"]["output_dir"]
     old_path = os.path.join(output_dir, "image.png")
 
-    if not os.path.exists(old_path):
-        logger.info("No image.png found.")
-        return None
+    # This mutates shared state; serialize against concurrent jobs.
+    with _image_write_lock:
+        if not os.path.exists(old_path):
+            logger.info("No image.png found.")
+            return None
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    short_uuid = uuid.uuid4().hex[:6]
-    new_filename = f"{timestamp}_{short_uuid}.png"
-    new_path = os.path.join(output_dir, new_filename)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        short_uuid = uuid.uuid4().hex[:6]
+        new_filename = f"{timestamp}_{short_uuid}.png"
+        new_path = os.path.join(output_dir, new_filename)
 
-    lock_fd = None
-    try:
-        lock_fd = _acquire_lock(_file_lock_path(fav_path))
-        if os.path.exists(fav_path):
-            with open(fav_path, 'r') as f:
-                favourites = json.load(f)
-            if "image.png" in favourites:
-                favourites.remove("image.png")
-                favourites.append(new_filename)
-                _atomic_write(fav_path, json.dumps(favourites))
+        lock_fd = None
+        try:
+            lock_fd = _acquire_lock(_file_lock_path(fav_path))
+            if os.path.exists(fav_path):
+                with open(fav_path, 'r') as f:
+                    favourites = json.load(f)
+                if "image.png" in favourites:
+                    favourites.remove("image.png")
+                    favourites.append(new_filename)
+                    _atomic_write(fav_path, json.dumps(favourites))
 
-        os.rename(old_path, new_path)
-        generate_thumbnail(new_path)
-        logger.info("Renamed 'image.png' to '%s'", new_filename)
-        return new_filename
-    finally:
-        if lock_fd is not None:
-            _release_lock(lock_fd)
+            os.rename(old_path, new_path)
+            generate_thumbnail(new_path)
+            logger.info("Renamed 'image.png' to '%s'", new_filename)
+            return new_filename
+        finally:
+            if lock_fd is not None:
+                _release_lock(lock_fd)
 
 
 def get_favourites() -> list[str]:
