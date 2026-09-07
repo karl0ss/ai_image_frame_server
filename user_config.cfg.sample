@@ -43,3 +43,15 @@ enabled = False
 api_key =
 models = llama3.1,phi3
 list_all_cloud_models = False
+
+[remote]
+# Optionally start the ComfyUI service before generating and stop it after.
+# Service is started/stopped over SSH on `host` via `sudo systemctl`.
+enabled = False
+host = 192.168.4.102
+port = 22
+username = karl
+password =
+service = comfyui
+# Wait (seconds) for the service to start listening before generating.
+startup_poll_timeout = 90
