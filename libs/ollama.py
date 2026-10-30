@@ -1,7 +1,7 @@
 import logging
 import random
 import time
-from libs.generic import load_config, build_user_content, extract_prompt, SYSTEM_PROMPT, get_bool
+from libs.generic import load_config, build_request_content, extract_prompt, SYSTEM_PROMPT, get_bool
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,8 @@ def _get_client(config=None):
     cfg = config or load_config()
     return Client(
         host='https://ollama.com',
-        headers={'Authorization': f'Bearer {cfg["ollama"]["api_key"]}'}
+        headers={'Authorization': f'Bearer {cfg["ollama"]["api_key"]}'},
+        timeout=120,
     )
 
 
@@ -97,14 +98,13 @@ def _chat_with_fallback(client, model, full_content, configured_models):
             return _try_fallback_models(client, configured_models, model, full_content)
 
 
-def create_prompt_on_ollama(base_prompt: str, topic: str = "random", model: str = None) -> str:
+def create_prompt_on_ollama(base_prompt: str, topic: str | None = "random", model: str = None) -> str:
     config = load_config()
     if not get_bool(config, "ollama", "enabled", False):
         logger.warning("Ollama Cloud is not enabled in the configuration.")
         return ""
 
-    user_content, _ = build_user_content(topic)
-    full_content = f"{base_prompt}\n\n{user_content}" if base_prompt else user_content
+    full_content = build_request_content(base_prompt, topic)
 
     configured_models = [m.strip() for m in config["ollama"]["models"].split(",") if m.strip()]
     if not configured_models:

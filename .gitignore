@@ -14,3 +14,4 @@ favourites.json
 .vscode/launch.json
 venv/*
 .kilo/plans/
+.pytest_cache/

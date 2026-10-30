@@ -2,9 +2,11 @@ import logging
 import random
 import time
 from openai import OpenAI, RateLimitError
-from libs.generic import load_config, build_user_content, extract_prompt, SYSTEM_PROMPT, get_bool
+from libs.generic import load_config, build_request_content, extract_prompt, SYSTEM_PROMPT, get_bool
 
 logger = logging.getLogger(__name__)
+
+LLM_TIMEOUT = 120
 
 _FREE_MODELS_CACHE = None
 _FREE_MODELS_CACHE_TIME = 0.0
@@ -24,6 +26,7 @@ def get_free_models():
         client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=config["openrouter"]["api_key"],
+            timeout=LLM_TIMEOUT,
         )
         all_models_response = client.models.list()
         all_models = [m.id for m in all_models_response.data]
@@ -59,14 +62,13 @@ def _create_completion_with_fallback(client, model, full_content):
         raise
 
 
-def create_prompt_on_openrouter(base_prompt: str, topic: str = "random", model: str = None) -> str:
+def create_prompt_on_openrouter(base_prompt: str, topic: str | None = "random", model: str = None) -> str:
     config = load_config()
     if not get_bool(config, "openrouter", "enabled", False):
         logger.warning("OpenRouter is not enabled in the configuration.")
         return ""
 
-    user_content, _ = build_user_content(topic)
-    full_content = f"{base_prompt}\n\n{user_content}" if base_prompt else user_content
+    full_content = build_request_content(base_prompt, topic)
 
     configured_models = [m.strip() for m in config["openrouter"]["models"].split(",") if m.strip()]
     if not configured_models:
@@ -79,6 +81,7 @@ def create_prompt_on_openrouter(base_prompt: str, topic: str = "random", model: 
     client = OpenAI(
         base_url="https://openrouter.ai/api/v1",
         api_key=config["openrouter"]["api_key"],
+        timeout=LLM_TIMEOUT,
     )
 
     if model:
@@ -120,7 +123,7 @@ def create_prompt_on_openrouter(base_prompt: str, topic: str = "random", model: 
             if openwebui_models:
                 selected_model = random.choice(openwebui_models)
                 try:
-                    return create_prompt_on_openwebui(full_content, topic, selected_model)
+                    return create_prompt_on_openwebui(full_content, None, selected_model)
                 except Exception as e2:
                     logger.error("OpenWebUI fallback also failed: %s", e2)
                     return "A colorful abstract composition"

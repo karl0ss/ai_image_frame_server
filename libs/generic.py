@@ -1,17 +1,18 @@
 import configparser
 import fcntl
+import functools
 import hashlib
 import hmac
+import importlib
 import json
 import logging
 import os
 import random
 import re
 import shutil
-import subprocess
 import sys
 import threading
-import time
+import tomllib
 import uuid
 from collections import OrderedDict
 from datetime import datetime
@@ -30,6 +31,13 @@ SYSTEM_PROMPT = (
     "Focus on lighting, atmosphere, and artistic style. "
     "Keep the prompt concise, no extra commentary or formatting."
 )
+
+PROMPT_SERVICES = {
+    "openwebui": ("libs.openwebui", "create_prompt_on_openwebui"),
+    "openrouter": ("libs.openrouter", "create_prompt_on_openrouter"),
+    "ollama": ("libs.ollama", "create_prompt_on_ollama"),
+    "freellmapi": ("libs.freellmapi", "create_prompt_on_freellmapi"),
+}
 
 _png_details_cache: OrderedDict[str, tuple[float, dict]] = OrderedDict()
 _png_cache_lock = threading.Lock()
@@ -55,7 +63,7 @@ class ConfigSingleton:
                 current_mtime = 0
 
             if cls._config is None or current_mtime > cls._mtime:
-                cfg = configparser.ConfigParser()
+                cfg = configparser.ConfigParser(interpolation=None)
                 read_files = cfg.read(config_path)
                 if read_files:
                     cls._config = cfg
@@ -333,111 +341,66 @@ def get_details_from_png(path):
         return {"p": "", "m": "", "d": ""}
 
 
-def get_current_version():
+@functools.lru_cache(maxsize=1)
+def get_current_version() -> str:
     try:
-        result = subprocess.run(
-            ['bump-my-version', 'show', 'current_version'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=True
-        )
-        version = result.stdout.strip()
-        return version
-    except subprocess.CalledProcessError as e:
-        logger.error("Error running bump-my-version: %s", e)
+        with open(".bumpversion.toml", "rb") as f:
+            return tomllib.load(f)["tool"]["bumpversion"]["current_version"]
+    except (OSError, KeyError, tomllib.TOMLDecodeError) as e:
+        logger.error("Could not read version: %s", e)
         return "unknown"
+
+
+def _split_csv(value: str) -> list[str]:
+    return sorted([item.strip() for item in value.split(",") if item.strip()], key=str.lower)
+
+
+def _config_models(config: configparser.ConfigParser, section: str, requires_enabled: bool = True) -> list[str]:
+    if section not in config or "models" not in config[section]:
+        return []
+    if requires_enabled and not get_bool(config, section, "enabled", False):
+        return []
+    return _split_csv(config[section]["models"])
 
 
 def load_models_from_config():
     config = load_config()
-
-    use_flux = get_bool(config, "comfyui", "flux", False)
-    if use_flux and "comfyui:flux" in config and "models" in config["comfyui:flux"]:
-        flux_models = [m.strip() for m in config["comfyui:flux"]["models"].split(",") if m.strip()]
-    else:
-        flux_models = []
-
-    sdxl_models = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
-
-    use_qwen = get_bool(config, "comfyui", "qwen", False)
-    if use_qwen and "comfyui:qwen" in config and "models" in config["comfyui:qwen"]:
-        qwen_models = [m.strip() for m in config["comfyui:qwen"]["models"].split(",") if m.strip()]
-    else:
-        qwen_models = []
-
-    return (
-        sorted(sdxl_models, key=str.lower),
-        sorted(flux_models, key=str.lower),
-        sorted(qwen_models, key=str.lower),
+    sdxl_models = _split_csv(config["comfyui"]["models"])
+    flux_models = (
+        _config_models(config, "comfyui:flux", requires_enabled=False)
+        if get_bool(config, "comfyui", "flux", False) else []
     )
+    qwen_models = (
+        _config_models(config, "comfyui:qwen", requires_enabled=False)
+        if get_bool(config, "comfyui", "qwen", False) else []
+    )
+    return sdxl_models, flux_models, qwen_models
 
 
 def load_topics_from_config():
+    return _split_csv(load_config()["comfyui"]["topics"])
+
+
+def load_prompt_model_groups() -> list[tuple[str, str, list[str]]]:
+    """Returns (label, service, models) for every prompt model group that has models."""
     config = load_config()
-    topics = [t.strip() for t in config["comfyui"]["topics"].split(",") if t.strip()]
-    return sorted(topics, key=str.lower)
+    groups = [
+        ("OpenWebUI", "openwebui", _config_models(config, "openwebui", requires_enabled=False)),
+        ("OpenRouter", "openrouter", _config_models(config, "openrouter")),
+    ]
+    if get_bool(config, "openrouter", "enabled", False) and get_bool(config, "openrouter", "list_all_free_models", False):
+        from libs.openrouter import get_free_models
+        groups.append(("OpenRouter Free", "openrouter", get_free_models()))
+    groups.append(("Ollama Cloud", "ollama", _config_models(config, "ollama")))
+    if get_bool(config, "ollama", "enabled", False) and get_bool(config, "ollama", "list_all_cloud_models", False):
+        from libs.ollama import get_cloud_models
+        groups.append(("Ollama Cloud (All)", "ollama", get_cloud_models()))
+    groups.append(("FreeLLMAPI", "freellmapi", _config_models(config, "freellmapi")))
+    return [group for group in groups if group[2]]
 
 
-def load_openrouter_models_from_config():
-    config = load_config()
-    if get_bool(config, "openrouter", "enabled", False):
-        models = config["openrouter"]["models"].split(",")
-        configured_models = sorted([model.strip() for model in models if model.strip()], key=str.lower)
-        free_models = []
-        if get_bool(config, "openrouter", "list_all_free_models", False):
-            from libs.openrouter import get_free_models
-            free_models = get_free_models()
-        return configured_models, free_models
-    return [], []
-
-
-def load_openwebui_models_from_config():
-    config = load_config()
-    if "openwebui" in config and "models" in config["openwebui"]:
-        models = config["openwebui"]["models"].split(",")
-        return sorted([model.strip() for model in models if model.strip()], key=str.lower)
-    return []
-
-
-def load_ollama_models_from_config():
-    config = load_config()
-    if get_bool(config, "ollama", "enabled", False) and "models" in config["ollama"]:
-        models = config["ollama"]["models"].split(",")
-        configured_models = sorted([model.strip() for model in models if model.strip()], key=str.lower)
-        cloud_models = []
-        if get_bool(config, "ollama", "list_all_cloud_models", False):
-            from libs.ollama import get_cloud_models
-            cloud_models = get_cloud_models()
-        return configured_models, cloud_models
-    return [], []
-
-
-def load_prompt_models_from_config():
-    config = load_config()
-    prompt_models = []
-
-    if "openwebui" in config and "models" in config["openwebui"]:
-        openwebui_models = config["openwebui"]["models"].split(",")
-        prompt_models.extend([("openwebui", model.strip()) for model in openwebui_models if model.strip()])
-
-    if get_bool(config, "openrouter", "enabled", False) and "models" in config["openrouter"]:
-        openrouter_models = config["openrouter"]["models"].split(",")
-        prompt_models.extend([("openrouter", model.strip()) for model in openrouter_models if model.strip()])
-        if get_bool(config, "openrouter", "list_all_free_models", False):
-            from libs.openrouter import get_free_models
-            free_models = get_free_models()
-            prompt_models.extend([("openrouter", model) for model in free_models])
-
-    if get_bool(config, "ollama", "enabled", False) and "models" in config["ollama"]:
-        ollama_models = config["ollama"]["models"].split(",")
-        prompt_models.extend([("ollama", model.strip()) for model in ollama_models if model.strip()])
-        if get_bool(config, "ollama", "list_all_cloud_models", False):
-            from libs.ollama import get_cloud_models
-            cloud_models = get_cloud_models()
-            prompt_models.extend([("ollama", model) for model in cloud_models])
-
-    return prompt_models
+def load_prompt_models_from_config() -> list[tuple[str, str]]:
+    return [(service, model) for _, service, models in load_prompt_model_groups() for model in models]
 
 
 def build_user_content(topic: str = "random", recent_prompts: list[str] | None = None) -> tuple[str, str]:
@@ -484,17 +447,19 @@ def build_user_content(topic: str = "random", recent_prompts: list[str] | None =
     return user_content, selected_topic
 
 
-def _call_prompt_service(service: str, model: str, full_prompt: str):
-    if service == "openwebui":
-        from libs.openwebui import create_prompt_on_openwebui
-        return create_prompt_on_openwebui(full_prompt, "", model)
-    elif service == "openrouter":
-        from libs.openrouter import create_prompt_on_openrouter
-        return create_prompt_on_openrouter(full_prompt, "", model)
-    elif service == "ollama":
-        from libs.ollama import create_prompt_on_ollama
-        return create_prompt_on_ollama(full_prompt, "", model)
-    return None
+def build_request_content(base_prompt: str, topic: str | None) -> str:
+    """Builds the user message for a provider. topic=None means base_prompt is already complete."""
+    if topic is None:
+        return base_prompt
+    user_content, _ = build_user_content(topic)
+    return f"{base_prompt}\n\n{user_content}" if base_prompt else user_content
+
+
+def _call_prompt_service(service: str, model: str, prompt: str, topic: str | None = None):
+    if service not in PROMPT_SERVICES:
+        return None
+    module, function = PROMPT_SERVICES[service]
+    return getattr(importlib.import_module(module), function)(prompt, topic, model)
 
 
 def _is_duplicate_prompt(prompt: str, recent_prompts: list[str]) -> bool:
@@ -503,6 +468,42 @@ def _is_duplicate_prompt(prompt: str, recent_prompts: list[str]) -> bool:
         if normalized == rp.strip().lower().rstrip("\n"):
             return True
     return False
+
+
+def try_prompt_service(
+    service: str, model: str, prompt: str, topic: str | None = None, attempts: int = 1
+) -> str | None:
+    for attempt in range(attempts):
+        try:
+            logging.info("Generating prompt with %s using model: %s", service, model)
+            result = _call_prompt_service(service, model, prompt, topic)
+            if result:
+                return result
+            logging.warning("%s returned no prompt (attempt %d/%d).", service, attempt + 1, attempts)
+        except Exception as e:
+            logging.error("Error with %s: %s", service, e)
+    return None
+
+
+def _generate_prompt(prompt_models: list, base_prompt: str, topic: str, recent_prompts: list[str]):
+    service, model = random.choice(prompt_models)
+    user_content, selected_topic = build_user_content(topic, recent_prompts)
+    full_prompt = base_prompt + "\n\n" + user_content
+
+    result = try_prompt_service(service, model, full_prompt, attempts=2 if service == "openwebui" else 1)
+    if result:
+        return result, selected_topic
+
+    other_models = [m for m in prompt_models if m[0] != service]
+    if other_models:
+        fb_service, fb_model = random.choice(other_models)
+        logging.warning("Falling back from %s to %s.", service, fb_service)
+        result = try_prompt_service(fb_service, fb_model, full_prompt)
+        if result:
+            return result, selected_topic
+
+    logging.error("No prompt service produced a result (first tried: %s).", service)
+    return "A colorful abstract composition", ""
 
 
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
@@ -515,68 +516,8 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
     recent_prompts = list(set(load_recent_prompts()))
     max_attempts = 3
 
-    service, model = random.choice(prompt_models)
-
-    def _fallback_to_other_services(excluded_service, topic, base_prompt):
-        other_models = [m for m in prompt_models if m[0] != excluded_service]
-        if other_models:
-            fb_service, fb_model = random.choice(other_models)
-            user_content, selected_topic = build_user_content(topic, recent_prompts)
-            full_prompt = base_prompt + "\n\n" + user_content
-            result = _call_prompt_service(fb_service, fb_model, full_prompt)
-            if result is not None:
-                return result, selected_topic
-        logging.error("No fallback models available (excluded: %s).", excluded_service)
-        return "A colorful abstract composition", ""
-
-    def _generate_once():
-        nonlocal service, model
-        service, model = random.choice(prompt_models)
-
-        if service == "openwebui":
-            try:
-                logging.info("Attempting to generate prompt with OpenWebUI using model: %s", model)
-                user_content, selected_topic = build_user_content(topic, recent_prompts)
-                full_prompt = base_prompt + "\n\n" + user_content
-                result = _call_prompt_service("openwebui", model, full_prompt)
-                if result:
-                    return result, selected_topic
-
-                logging.warning("First OpenWebUI attempt failed. Retrying...")
-                result = _call_prompt_service("openwebui", model, full_prompt)
-                if result:
-                    return result, selected_topic
-
-                logging.warning("Second OpenWebUI attempt failed. Falling back to other services...")
-                return _fallback_to_other_services("openwebui", topic, base_prompt)
-
-            except Exception as e:
-                logging.error("Error with OpenWebUI: %s", e)
-                logging.warning("OpenWebUI exception. Falling back to other services...")
-                return _fallback_to_other_services("openwebui", topic, base_prompt)
-
-        elif service == "openrouter":
-            try:
-                user_content, selected_topic = build_user_content(topic, recent_prompts)
-                full_prompt = base_prompt + "\n\n" + user_content
-                return create_prompt_on_openrouter(full_prompt, "", model), selected_topic
-            except Exception as e:
-                logging.error("Error with OpenRouter: %s", e)
-                return _fallback_to_other_services("openrouter", topic, base_prompt)
-
-        elif service == "ollama":
-            try:
-                user_content, selected_topic = build_user_content(topic, recent_prompts)
-                full_prompt = base_prompt + "\n\n" + user_content
-                return create_prompt_on_ollama(full_prompt, "", model), selected_topic
-            except Exception as e:
-                logging.error("Error with Ollama: %s", e)
-                return _fallback_to_other_services("ollama", topic, base_prompt)
-
-        return None, ""
-
     for attempt in range(max_attempts):
-        result, selected_topic = _generate_once()
+        result, selected_topic = _generate_prompt(prompt_models, base_prompt, topic, recent_prompts)
         if result and not _is_duplicate_prompt(result, recent_prompts):
             return result, selected_topic
         if attempt < max_attempts - 1:
@@ -588,10 +529,15 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
 
 user_config = load_config()
 favourites_file = "./favourites.json"
-selected_image_file = "./selected_image.json"
+
+
+def _selected_image_path() -> str:
+    # Kept beside the images because output/ is the volume that survives a container recreate.
+    return os.path.join(load_config()["comfyui"]["output_dir"], "selected_image.json")
 
 
 def get_selected_image() -> str | None:
+    selected_image_file = _selected_image_path()
     if not os.path.exists(selected_image_file):
         return None
     try:
@@ -603,6 +549,7 @@ def get_selected_image() -> str | None:
 
 
 def set_selected_image(filename: str | None) -> None:
+    selected_image_file = _selected_image_path()
     if filename is None:
         if os.path.exists(selected_image_file):
             os.remove(selected_image_file)

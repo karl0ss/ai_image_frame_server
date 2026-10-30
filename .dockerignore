@@ -1,0 +1,24 @@
+# Secrets and runtime data: these are mounted into the container, never baked in.
+user_config.cfg
+favourites.json
+favourites.json.lock
+prompts_log.jsonl
+selected_image.json
+output/
+
+.git
+.github
+.kilo
+.vscode
+.venv
+venv
+**/__pycache__
+**/*.pyc
+tests
+test.py
+publish.sh
+bump_and_push.sh
+create_thumbs_from_old.py
+requirements-dev.txt
+README.md
+.pytest_cache

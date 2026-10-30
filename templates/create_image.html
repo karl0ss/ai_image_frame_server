@@ -196,6 +196,8 @@
 
 <textarea id="prompt-box" placeholder="Enter your custom prompt here..."></textarea>
 
+<div class="flash flash-error" id="form-error" role="alert" hidden></div>
+
 <div class="button-group">
     <button onclick="showSpinner(); location.href='/'">Back</button>
     <button onclick="sendPrompt()">Send Prompt</button>
@@ -235,41 +237,13 @@
         <label for="prompt-model-select">Prompt Model:</label>
         <select id="prompt-model-select">
             <option value="" selected>Random Prompt Model</option>
-            {% if openwebui_models %}
-            <optgroup label="OpenWebUI">
-                {% for m in openwebui_models %}
-                <option value="openwebui:{{ m }}">{{ m }}</option>
+            {% for label, service, models in prompt_model_groups %}
+            <optgroup label="{{ label }}">
+                {% for m in models %}
+                <option value="{{ service }}:{{ m }}">{{ m }}</option>
                 {% endfor %}
             </optgroup>
-            {% endif %}
-            {% if openrouter_models %}
-            <optgroup label="OpenRouter">
-                {% for m in openrouter_models %}
-                <option value="openrouter:{{ m }}">{{ m }}</option>
-                {% endfor %}
-            </optgroup>
-            {% endif %}
-            {% if openrouter_free_models %}
-            <optgroup label="OpenRouter Free">
-                {% for m in openrouter_free_models %}
-                <option value="openrouter:{{ m }}">{{ m }}</option>
-                {% endfor %}
-            </optgroup>
-            {% endif %}
-            {% if ollama_models %}
-            <optgroup label="Ollama Cloud">
-                {% for m in ollama_models %}
-                <option value="ollama:{{ m }}">{{ m }}</option>
-                {% endfor %}
-            </optgroup>
-            {% endif %}
-            {% if ollama_cloud_models %}
-            <optgroup label="Ollama Cloud (All)">
-                {% for m in ollama_cloud_models %}
-                <option value="ollama:{{ m }}">{{ m }}</option>
-                {% endfor %}
-            </optgroup>
-            {% endif %}
+            {% endfor %}
         </select>
     </div>
     
@@ -298,6 +272,13 @@
 
     function showSpinner() { overlay.style.visibility = 'visible'; }
 
+    function showError(message) {
+        overlay.style.visibility = 'hidden';
+        const formError = document.getElementById('form-error');
+        formError.textContent = message;
+        formError.hidden = false;
+    }
+
     function sendPrompt() {
         showSpinner();
         const prompt = document.getElementById('prompt-box').value;
@@ -318,8 +299,7 @@
                 window.location.href = response.redirected ? response.url : '/create';
             })
             .catch(error => {
-                overlay.style.visibility = 'hidden';
-                alert("Error sending prompt: " + error);
+                showError("Error sending prompt: " + error);
             });
     }
 
@@ -343,8 +323,7 @@
                 window.location.href = response.redirected ? response.url : '/create';
             })
             .catch(error => {
-                overlay.style.visibility = 'hidden';
-                alert("Error requesting random prompt: " + error);
+                showError("Error requesting random prompt: " + error);
             });
     }
     document.addEventListener('DOMContentLoaded', function() {
@@ -389,9 +368,11 @@
                     jobs.forEach(job => {
                         const item = document.createElement('div');
                         item.className = 'queue-item';
-                        item.innerHTML = `
-                            <div class="prompt" data-model="${job.model}">${job.prompt}</div>
-                        `;
+                        const promptEl = document.createElement('div');
+                        promptEl.className = 'prompt';
+                        promptEl.dataset.model = job.model;
+                        promptEl.textContent = job.prompt;
+                        item.appendChild(promptEl);
                         container.appendChild(item);
                     });
                 })

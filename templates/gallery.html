@@ -90,20 +90,6 @@
             overflow-y: auto;
         }
 
-        .home-button {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 500;
-        }
-
-        .favourites-button {
-            position: fixed;
-            top: 20px;
-            right: 120px;
-            z-index: 500;
-        }
-
         .favourite-heart {
             position: absolute;
             top: 20px;
@@ -181,33 +167,30 @@
     </style>
 {% endblock %}
 
-{% block content %}
-    <a href="/" class="button-link home-button">Home</a>
-    <button class="button-link favourites-button" id="favourites-button" onclick="toggleFavouritesView()">Show Favourites</button>
+{% block nav_actions %}
+    <button type="button" id="favourites-button" onclick="toggleFavouritesView()">Show Favourites</button>
+{% endblock %}
 
+{% block content %}
     <h1 id="page-title">Image Archive</h1>
 
     <div class="gallery" id="gallery"></div>
 
     <div class="lightbox" id="lightbox" tabindex="-1" onkeyup="handleLightboxKeys(event)">
-        <span class="close" onclick="closeLightbox()">&times;</span>
-        <span class="favourite-heart" id="favourite-heart" onclick="toggleFavourite()">&#9825;</span>
-        <span class="arrow left" onclick="prevImage()">&#10094;</span>
-        <img id="lightbox-img" src="" />
+        <button type="button" class="icon-button close" aria-label="Close" onclick="closeLightbox()">&times;</button>
+        <button type="button" class="icon-button favourite-heart" id="favourite-heart" aria-label="Toggle favourite" onclick="toggleFavourite()">&#9825;</button>
+        <button type="button" class="icon-button arrow left" aria-label="Previous image" onclick="prevImage()">&#10094;</button>
+        <img id="lightbox-img" src="" alt="" />
         <p id="lightbox-prompt"></p>
         <button class="select-button" id="select-button" onclick="toggleSelectImage()">Set as Displayed</button>
-        <span class="arrow right" onclick="nextImage()">&#10095;</span>
+        <button type="button" class="icon-button arrow right" aria-label="Next image" onclick="nextImage()">&#10095;</button>
     </div>
 {% endblock %}
 
 {% block scripts %}
     <script>
-        let allImages = JSON.parse(`[
-            {% for image in images %}
-                { "filename": "{{ image.filename }}", "favourited": {{ 'true' if image.favourited else 'false' }} }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ]`);
-        let selectedFilename = {{ ('"' + selected + '"') if selected else 'null' }};
+        let allImages = {{ images|tojson }};
+        let selectedFilename = {{ selected|tojson }};
     </script>
 
     <script>

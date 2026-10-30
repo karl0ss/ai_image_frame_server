@@ -106,7 +106,9 @@ The application is configured via the `user_config.cfg` file.
 *   **Job Queue:** Monitor and cancel running/pending jobs via the gallery interface.
 *   **API Endpoints:**
     *   `/api/queue` - Get current job queue details (JSON)
-    *   `/cancel` - Cancel the current running job
+    *   `/api/jobs/<id>` - Get the status of a job started from the create page (JSON)
+    *   `/api/frame` - Get the image currently on display and its version (JSON)
+    *   `/cancel` - Cancel the current running job (POST; requires login when `create_requires_auth` is on)
     
 ## Dependencies
 

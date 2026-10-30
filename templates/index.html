@@ -2,6 +2,9 @@
 
 {% block title %}AI Image of the Day{% endblock %}
 
+{% block body_class %}{% endblock %}
+{% block nav %}{% endblock %}
+
 {% block head %}
     <style>
         body {
@@ -85,10 +88,10 @@
 {% block content %}
     {% if image %}
     <div class="image-container">
-        <img src="{{ url_for('image_routes.serve_image', filename=image) }}" alt="Latest Image" />
+        <img id="frame-image" src="{{ url }}" alt="Latest Image" />
     </div>
     {% if prompt %}
-    <div class="prompt">{{ prompt }}</div>
+    <div class="prompt" id="frame-prompt">{{ prompt }}</div>
     <div class="button-group">
         <a href="/images" class="button-link">Archive</a>
         <a href="/create_image" class="button-link">Create Image</a>
@@ -104,6 +107,10 @@
 
 {% block scripts %}
     <script>
+        const frameImage = document.getElementById('frame-image');
+        const framePrompt = document.getElementById('frame-prompt');
+        let current = { version: {{ version|tojson }}, selected: {{ selected|tojson }} };
+
         function clearSelection() {
             fetch('/select-image', {
                 method: 'POST',
@@ -118,10 +125,29 @@
             });
         }
 
-        {% if not selected %}
-        setInterval(() => {
-            location.reload();
-        }, {{ reload_interval }});
-        {% endif %}
+        function checkForNewImage() {
+            fetch('/api/frame', { cache: 'no-store' })
+                .then(response => response.json())
+                .then(state => {
+                    if (state.selected !== current.selected) {
+                        location.reload();
+                        return;
+                    }
+                    if (state.version === current.version || !state.version) return;
+                    // Load it first so the old image stays up until the new one is ready.
+                    const next = new Image();
+                    next.onload = () => {
+                        frameImage.src = state.url;
+                        framePrompt.textContent = state.prompt;
+                        current = state;
+                    };
+                    next.src = state.url;
+                })
+                .catch(() => {});  // Server unreachable: keep showing the image and try again.
+        }
+
+        setInterval(checkForNewImage, Math.min({{ reload_interval }}, 30000));
+        // Pages restored by the Back button don't rerun their scripts.
+        window.addEventListener('pageshow', event => { if (event.persisted) checkForNewImage(); });
     </script>
 {% endblock %}

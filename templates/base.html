@@ -7,7 +7,19 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     {% block head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}with-nav{% endblock %}">
+    {% block nav %}
+    <nav class="site-nav" aria-label="Main">
+        <a href="/">Frame</a>
+        <a href="/images">Archive</a>
+        <a href="/create_image">Create</a>
+        <a href="{{ url_for('settings_route.config_editor') }}">Settings</a>
+        <div class="site-nav-actions">{% block nav_actions %}{% endblock %}</div>
+    </nav>
+    {% endblock %}
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="flash flash-{{ category }}" role="alert">{{ message }}</div>
+    {% endfor %}
     {% block content %}{% endblock %}
 
     <!-- Version number at bottom right -->

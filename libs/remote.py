@@ -50,19 +50,26 @@ class ComfyUIRemoteManager:
             self._client = client
         return self._client
 
-    def _run(self, command: str) -> str:
+    def _run(self, command: str, stdin_text: str | None = None) -> str:
         client = self._connect()
-        _, stdout, stderr = client.exec_command(command, timeout=60)
+        stdin, stdout, stderr = client.exec_command(command, timeout=60)
+        if stdin_text is not None:
+            stdin.write(stdin_text)
+            stdin.flush()
         out = stdout.read().decode()
         err = stderr.read().decode()
         rc = stdout.channel.recv_exit_status()
         logger.debug("SSH cmd '%s' -> rc=%s out=%r err=%r", command, rc, out, err)
         return out or err
 
+    def _sudo(self, command: str) -> str:
+        # The password goes over stdin so it never appears on a command line or in logs.
+        return self._run(f"sudo -S -p '' {command}", stdin_text=self.password + "\n")
+
     def _start(self) -> None:
         logger.info("Starting ComfyUI service '%s' on %s", self.service, self.host)
-        self._run(f"echo '{self.password}' | sudo -S systemctl start {self.service}")
-        self._run(f"echo '{self.password}' | sudo -S systemctl is-active {self.service}")
+        self._sudo(f"systemctl start {self.service}")
+        self._sudo(f"systemctl is-active {self.service}")
         self._wait_until_ready()
 
     def _wait_until_ready(self) -> None:
@@ -91,7 +98,7 @@ class ComfyUIRemoteManager:
 
     def _stop(self) -> None:
         logger.info("Stopping ComfyUI service '%s' on %s", self.service, self.host)
-        self._run(f"echo '{self.password}' | sudo -S systemctl stop {self.service}")
+        self._sudo(f"systemctl stop {self.service}")
         self._close()
 
     def _close(self) -> None:

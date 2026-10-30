@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Image Created{% endblock %}
+{% block title %}Image Job{% endblock %}
 
 {% block head %}
     <style>
@@ -26,27 +26,101 @@
             margin-bottom: 30px;
             word-wrap: break-word;
         }
-        button {
-            background: #333;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.3s;
+        .job-meta {
+            color: #aaa;
+            margin-bottom: 20px;
         }
-        button:hover {
-            background: #555;
+        .job-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
     </style>
 {% endblock %}
 
 {% block content %}
-    <div class="message">Image will be made with <i>{{ model }}</i> using prompt:</div>
-    <div class="prompt-text">
-        {{ prompt }}
+    {% if job %}
+    <div class="message" id="job-status" role="status">Starting…</div>
+    <div class="job-meta" id="job-meta"></div>
+    <div class="prompt-text" id="job-prompt" hidden></div>
+    <div class="flash flash-error" id="job-error" role="alert" hidden></div>
+    <div class="job-actions">
+        <button type="button" id="cancel-button" hidden>Cancel</button>
+        <a class="button-link" id="view-button" href="/" hidden>View Image</a>
+        <a class="button-link" href="/create_image">Create Another</a>
     </div>
-    <button onclick="location.href='/'">Home</button>
+    {% else %}
+    <div class="message">This job is no longer tracked.</div>
+    <a class="button-link" href="/">Home</a>
+    {% endif %}
 {% endblock %}
 
+{% block scripts %}
+    {% if job %}
+    <script>
+        const jobId = {{ job.id|tojson }};
+        const statusLabels = {
+            queued: 'Queued',
+            prompt: 'Writing a prompt',
+            waiting: 'Waiting for ComfyUI',
+            rendering: 'Rendering',
+            done: 'Image ready',
+            failed: 'Generation failed',
+            cancelled: 'Cancelled',
+        };
+        const finishedStates = ['done', 'failed', 'cancelled'];
+        const statusEl = document.getElementById('job-status');
+        const metaEl = document.getElementById('job-meta');
+        const promptEl = document.getElementById('job-prompt');
+        const errorEl = document.getElementById('job-error');
+        const cancelButton = document.getElementById('cancel-button');
+        const viewButton = document.getElementById('view-button');
+
+        function formatElapsed(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainder = Math.floor(seconds % 60);
+            return minutes ? `${minutes}m ${remainder}s` : `${remainder}s`;
+        }
+
+        function showJob(job) {
+            const finished = finishedStates.includes(job.status);
+            const end = job.finished || Date.now() / 1000;
+            statusEl.textContent = statusLabels[job.status] || job.status;
+            const parts = [formatElapsed(end - job.created)];
+            if (job.model) parts.unshift(job.model.split('.')[0]);
+            metaEl.textContent = parts.join(' · ');
+            promptEl.textContent = job.prompt;
+            promptEl.hidden = !job.prompt;
+            errorEl.textContent = job.error;
+            errorEl.hidden = !job.error;
+            // Interrupting stops whatever ComfyUI is running, so only offer it during this job's render.
+            cancelButton.hidden = job.status !== 'rendering';
+            viewButton.hidden = job.status !== 'done';
+            return finished;
+        }
+
+        function poll() {
+            fetch(`/api/jobs/${jobId}`)
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(job => {
+                    if (!showJob(job)) setTimeout(poll, 2000);
+                })
+                .catch(() => {
+                    metaEl.textContent = 'Lost contact with the server, retrying…';
+                    setTimeout(poll, 5000);
+                });
+        }
+
+        cancelButton.addEventListener('click', () => {
+            cancelButton.disabled = true;
+            fetch('/cancel', { method: 'POST' }).finally(() => { cancelButton.disabled = false; });
+        });
+
+        poll();
+    </script>
+    {% endif %}
+{% endblock %}

@@ -1,18 +1,14 @@
 import logging
-from libs.generic import load_config, build_user_content, extract_prompt
+from libs.generic import load_config, build_request_content, extract_prompt
 from openwebui_chat_client import OpenWebUIClient
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 
-def create_prompt_on_openwebui(base_prompt: str, topic: str = "random", model: str = None) -> str:
+def create_prompt_on_openwebui(base_prompt: str, topic: str | None = "random", model: str = None) -> str:
     config = load_config()
-    user_content, _ = build_user_content(topic)
-    if base_prompt:
-        full_content = f"{base_prompt}\n\n{user_content}"
-    else:
-        full_content = user_content
+    full_content = build_request_content(base_prompt, topic)
 
     model = model or config["openwebui"]["models"].split(",")[0].strip()
 

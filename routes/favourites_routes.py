@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, send_file
 import os
-from libs.generic import get_favourites, favourites_file
+from libs.generic import favourites_file
 
 bp = Blueprint("favourites_routes", __name__)
 

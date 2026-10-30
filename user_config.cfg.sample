@@ -44,6 +44,18 @@ api_key =
 models = llama3.1,phi3
 list_all_cloud_models = False
 
+[freellmapi]
+# FreeLLMAPI router, usable for prompts, images, or both.
+# enabled turns on prompt generation; image_backend replaces ComfyUI for images.
+# As an image backend the router only accepts model="auto" (it picks the provider).
+enabled = False
+image_backend = False
+base_url = http://192.168.4.10:3005
+api_key =
+# Comma-separated list of chat models to use for prompt generation.
+# It must not be empty or the router won't be offered. Use "auto" to let it choose.
+models = auto
+
 [remote]
 # Optionally start the ComfyUI service before generating and stop it after.
 # Service is started/stopped over SSH on `host` via `sudo systemctl`.

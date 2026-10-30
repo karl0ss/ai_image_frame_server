@@ -1,13 +1,21 @@
+import functools
 import hmac
-from flask import Blueprint, render_template, request, redirect, url_for, session
-from libs.generic import hash_password
+from flask import Blueprint, flash, render_template, request, redirect, url_for, session
+from libs.generic import get_bool, hash_password, load_config
 
 bp = Blueprint("auth_routes", __name__)
-user_config = None
 
-def init_app(config):
-    global user_config
-    user_config = config
+
+def requires_create_auth(view):
+    """Guards image creation and job control when create_requires_auth is on."""
+    @functools.wraps(view)
+    def wrapped(*args, **kwargs):
+        if get_bool(load_config(), "frame", "create_requires_auth", False) and not session.get("authenticated"):
+            next_url = request.path if request.method == "GET" else url_for("create_routes.create_image_page")
+            return redirect(url_for("auth_routes.login", next=next_url))
+        return view(*args, **kwargs)
+    return wrapped
+
 
 def is_safe_url(target):
     from urllib.parse import urlparse, urljoin
@@ -28,7 +36,7 @@ def login():
             next_url = None
 
     if request.method == "POST":
-        stored_value = user_config["frame"]["password_for_auth"]
+        stored_value = load_config()["frame"]["password_for_auth"]
         submitted_password = request.form.get("password", "")
         if submitted_password:
             input_hash = hash_password(submitted_password)
@@ -41,6 +49,7 @@ def login():
                 if next_url and is_safe_url(next_url):
                     return redirect(next_url)
                 return redirect(url_for("create_routes.create_image_page"))
+        flash("Incorrect password.", "error")
         return redirect(url_for("auth_routes.login", next=next_url))
 
     return render_template("login.html", next=next_url)

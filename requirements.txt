@@ -1,13 +1,13 @@
+APScheduler==3.11.3
 comfy_api_simplified==1.2.1
-websockets
-openai
-flask
-apscheduler
-tenacity
-nest_asyncio
-Pillow
-bump-my-version
-openwebui-chat-client
-ollama
-waitress
-paramiko
+Flask==3.1.3
+ollama==0.6.3
+openai==3.41.0
+openwebui-chat-client==0.1.24
+paramiko==5.1.0
+pillow==13.0.0
+requests==2.34.2
+tenacity==9.2.1
+waitress==3.0.2
+# Imported by comfy_api_simplified but not declared as its dependency.
+websockets==17.3

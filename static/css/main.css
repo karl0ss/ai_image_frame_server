@@ -11,6 +11,7 @@ body {
     padding: 2rem;
 }
 
+button,
 .button-link {
     background: #333;
     color: white;
@@ -25,19 +26,77 @@ body {
     border: none;
 }
 
+button:hover,
 .button-link:hover {
     background: #555;
+}
+
+button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+.icon-button,
+.icon-button:hover {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    line-height: 1;
+}
+
+body.with-nav {
+    padding-top: 4rem;
+}
+
+.site-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 20px;
+    background: #111;
+    border-bottom: 1px solid #333;
+    white-space: nowrap;
+    overflow-x: auto;
+}
+
+.site-nav a {
+    color: #ddd;
+    text-decoration: none;
+    font-size: 15px;
+}
+
+.site-nav a:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+.site-nav-actions {
+    margin-left: auto;
+}
+
+.site-nav-actions button {
+    padding: 6px 12px;
+    font-size: 14px;
 }
 
 .version {
     position: fixed;
     bottom: 8px;
     right: 12px;
-    color: #666;
+    color: #999;
     font-size: 12px;
     font-family: monospace;
     user-select: none;
-    opacity: 0.6;
 }
 
 .version a {
@@ -48,4 +107,16 @@ body {
 
 .version a:hover {
     text-decoration: underline;
+}
+
+.flash {
+    padding: 10px 16px;
+    margin-bottom: 16px;
+    border-radius: 8px;
+    background: #333;
+    color: white;
+}
+
+.flash-error {
+    background: #7a1f1f;
 }

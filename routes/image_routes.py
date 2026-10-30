@@ -1,6 +1,6 @@
 from flask import Blueprint, send_from_directory, jsonify
 import os
-from libs.generic import get_details_from_png, load_config
+from libs.generic import get_details_from_png, get_selected_image, load_config
 
 bp = Blueprint("image_routes", __name__)
 
@@ -14,6 +14,9 @@ def _get_output_dir():
 def serve_image(filename):
     if "/" in filename or "\\" in filename or ".." in filename:
         return jsonify({"error": "Invalid filename"}), 400
+    # MagicMirror always reads image.png, so this is what makes "Set as Displayed" reach it.
+    if filename == "image.png":
+        filename = get_selected_image() or filename
     return send_from_directory(_get_output_dir(), filename)
 
 
