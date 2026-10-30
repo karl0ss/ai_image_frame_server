@@ -9,6 +9,7 @@ import logging
 import os
 import random
 import re
+import secrets
 import shutil
 import sys
 import threading
@@ -18,6 +19,7 @@ from collections import OrderedDict
 from datetime import datetime
 
 from PIL import Image
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from libs.create_thumbnail import generate_thumbnail
 
@@ -167,12 +169,16 @@ def save_prompt(prompt, topic=""):
 
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    return generate_password_hash(password)
 
 
-def verify_password(password: str, stored_hash: str) -> bool:
-    input_hash = hash_password(password)
-    return hmac.compare_digest(input_hash, stored_hash)
+def verify_password(password: str, stored: str) -> bool:
+    """Checks a password against a salted hash, or the older SHA-256 and plain text values."""
+    if stored.startswith(("scrypt:", "pbkdf2:")):
+        return check_password_hash(stored, password)
+    if len(stored) == 64 and all(c in "0123456789abcdef" for c in stored.lower()):
+        return hmac.compare_digest(hashlib.sha256(password.encode()).hexdigest(), stored.lower())
+    return hmac.compare_digest(password.encode(), stored.encode())
 
 
 def _file_lock_path(filepath: str) -> str:
@@ -267,10 +273,21 @@ def _atomic_write(filepath: str, data: str) -> None:
             raise
 
 
-def save_favourites(favourites: list[str]) -> None:
+def toggle_favourite(filename: str) -> bool:
+    """Adds or removes filename under one lock, so concurrent toggles can't lose updates."""
     lock_fd = _acquire_lock(_file_lock_path(favourites_file))
     try:
+        favourites = []
+        if os.path.exists(favourites_file):
+            with open(favourites_file, 'r') as f:
+                favourites = json.load(f)
+        is_favourited = filename not in favourites
+        if is_favourited:
+            favourites.append(filename)
+        else:
+            favourites.remove(filename)
         _atomic_write(favourites_file, json.dumps(favourites))
+        return is_favourited
     finally:
         _release_lock(lock_fd)
 
@@ -287,7 +304,16 @@ def _find_model_from_metadata(data: dict) -> str:
     return "unknown"
 
 
+def _cache_png_details(path: str, mtime: float, details: dict) -> None:
+    with _png_cache_lock:
+        _png_details_cache[path] = (mtime, details)
+        if len(_png_details_cache) > _PNG_CACHE_MAX:
+            _png_details_cache.popitem(last=False)
+
+
 def get_details_from_png(path):
+    empty = {"p": "", "m": "", "d": ""}
+    mtime = None
     try:
         mtime = os.path.getmtime(path)
         with _png_cache_lock:
@@ -331,14 +357,15 @@ def get_details_from_png(path):
             model = _find_model_from_metadata(data)
             result = {"p": prompt, "m": model, "d": date}
 
-        with _png_cache_lock:
-            _png_details_cache[path] = (mtime, result)
-            if len(_png_details_cache) > _PNG_CACHE_MAX:
-                _png_details_cache.popitem(last=False)
+        _cache_png_details(path, mtime, result)
         return result
+    except FileNotFoundError:
+        return empty
     except Exception as e:
         logger.warning("Error reading metadata from %s: %s", path, e)
-        return {"p": "", "m": "", "d": ""}
+        # Cached so a page polling an image without metadata doesn't log this every time.
+        _cache_png_details(path, mtime, empty)
+        return empty
 
 
 @functools.lru_cache(maxsize=1)
@@ -529,6 +556,25 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
 
 user_config = load_config()
 favourites_file = "./favourites.json"
+
+
+def load_secret_key() -> str:
+    """Returns SECRET_KEY, or a key kept on the output volume so logins survive a restart."""
+    secret_key = os.environ.get("SECRET_KEY")
+    if secret_key:
+        return secret_key
+    path = os.path.join(load_config()["comfyui"]["output_dir"], ".secret_key")
+    try:
+        with open(path) as f:
+            secret_key = f.read().strip()
+    except FileNotFoundError:
+        secret_key = ""
+    if not secret_key:
+        secret_key = secrets.token_hex(32)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+            f.write(secret_key)
+    return secret_key
 
 
 def _selected_image_path() -> str:

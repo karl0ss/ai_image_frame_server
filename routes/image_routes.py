@@ -5,6 +5,9 @@ from libs.generic import get_details_from_png, get_selected_image, load_config
 bp = Blueprint("image_routes", __name__)
 
 
+_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif")
+
+
 def _get_output_dir():
     config = load_config()
     return config["comfyui"]["output_dir"].rstrip("/")
@@ -14,6 +17,9 @@ def _get_output_dir():
 def serve_image(filename):
     if "/" in filename or "\\" in filename or ".." in filename:
         return jsonify({"error": "Invalid filename"}), 400
+    # The output volume also holds the session key and app state, so only images are served.
+    if not filename.lower().endswith(_IMAGE_EXTENSIONS):
+        return jsonify({"error": "Not found"}), 404
     # MagicMirror always reads image.png, so this is what makes "Set as Displayed" reach it.
     if filename == "image.png":
         filename = get_selected_image() or filename

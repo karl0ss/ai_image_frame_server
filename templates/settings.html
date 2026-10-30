@@ -1,160 +1,203 @@
 {% extends "base.html" %}
 
-{% block title %}Config Editor{% endblock %}
+{% block title %}Settings{% endblock %}
 
 {% block head %}
   <style>
-    body {
-      min-height: 100vh;
-      padding: 40px 20px;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
+    .settings {
+      max-width: 1000px;
+      margin: 0 auto;
     }
 
-    .box {
+    .settings h1 {
+      margin-bottom: 1.5rem;
+    }
+
+    .settings-group {
       background: #1a1a1a;
-      padding: 20px;
       border-radius: 12px;
-      width: 45%;
-      min-width: 300px;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
-    h2 {
-      margin-bottom: 20px;
-      font-size: 24px;
-    }
-
-    form {
-      margin-bottom: 20px;
-    }
-
-    select,
-    input[type="text"] {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: none;
-      outline: none;
-    }
-
-    button {
-      width: 100%;
-      background: #333;
-      color: white;
-      text-decoration: none;
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 16px;
+    .settings-group summary {
+      padding: 16px 20px;
       cursor: pointer;
-      transition: background 0.3s;
-      border: none;
+      font-size: 18px;
+      font-weight: bold;
     }
 
-    button:hover {
-      background: #555;
+    .settings-group summary small {
+      display: block;
+      margin-top: 4px;
+      color: #aaa;
+      font-size: 14px;
+      font-weight: normal;
     }
 
-    .button-group {
-      text-align: center;
-      margin-top: 20px;
+    .settings-fields {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 18px 24px;
+      padding: 4px 20px 20px;
     }
 
-    .back-button-wrapper {
+    .field-wide {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .field input[type="text"],
+    .field input[type="password"],
+    .field input[type="number"],
+    .field input[type="url"],
+    .field textarea {
       width: 100%;
-      display: flex;
-      justify-content: center;
-      margin-top: 20px;
+      padding: 10px;
+      font: inherit;
+      color: white;
+      background: #222;
+      border: 1px solid #555;
+      border-radius: 6px;
     }
 
-    @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-        align-items: center;
-      }
+    .field textarea {
+      min-height: 140px;
+      font-family: monospace;
+      font-size: 14px;
+      resize: vertical;
+    }
 
-      .box {
-        width: 90%;
-        margin-bottom: 30px;
-      }
+    .field-check label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+
+    .field-check input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .field-help {
+      margin-top: 6px;
+      color: #aaa;
+      font-size: 13px;
+    }
+
+    .field-error {
+      margin-top: 6px;
+      color: #ff9b9b;
+      font-size: 14px;
+    }
+
+    .field-invalid input,
+    .field-invalid textarea {
+      border-color: #ff9b9b;
+    }
+
+    .restart-tag {
+      margin-left: 6px;
+      color: #e3b341;
+      font-size: 12px;
+    }
+
+    .settings-actions {
+      position: sticky;
+      bottom: 0;
+      padding: 12px 0;
+      background: black;
+    }
+
+    .settings-actions button {
+      background: #2a6b2a;
+    }
+
+    .settings-actions button:hover {
+      background: #3a8a3a;
     }
   </style>
 {% endblock %}
 
 {% block content %}
-  <div class="box">
-    <h2>Topics</h2>
-    <form method="post">
-      <select name="delete_topic">
-        {% for item in topics %}
-        <option value="{{ item }}">{{ item }}</option>
-        {% endfor %}
-      </select>
-      <button name="delete_topic" type="submit">Delete Selected Topic</button>
-    </form>
-
-    <form method="post">
-      <input type="text" name="new_topic" placeholder="New topic">
-      <button name="new_topic" type="submit">Add Topic</button>
-    </form>
-  </div>
-
-  <div class="box">
-    <h2>Models</h2>
-    <form method="post">
-      <select name="delete_model">
-        {% for item in models %}
-        <option value="{{ item }}">{{ item }}</option>
-        {% endfor %}
-      </select>
-      <button name="delete_model" type="submit">Delete Selected Model</button>
-    </form>
-
-    <form method="post">
-      <input type="text" name="new_model" placeholder="New model">
-      <button name="new_model" type="submit">Add Model</button>
-    </form>
-  </div>
-  <div class="box" style="width: 100%;">
-    <h2>Config Values</h2>
-    <form method="post" style="display:flex; flex-wrap:wrap; justify-content:space-between;">
-      {% for section in config_sections %}
-      <div class="box">
-        <h2>[{{ section }}]</h2>
-        {% for key, value in config_values[section].items() %}
-        <label>{{ key }}</label>
-        {% if value.lower() in ['true', 'false'] %}
-        <select name="{{ section }}:{{ key }}">
-          <option value="True" {% if value.lower()=='true' %}selected{% endif %}>True</option>
-          <option value="False" {% if value.lower()=='false' %}selected{% endif %}>False</option>
-        </select>
-        {% else %}
-        {% if key in sensitive_keys %}
-        <input type="text" name="{{ section }}:{{ key }}" value="********" placeholder="********">
-        {% elif value.lower() in ['true', 'false'] %}
-        <select name="{{ section }}:{{ key }}">
-          <option value="True" {% if value.lower()=='true' %}selected{% endif %}>True</option>
-          <option value="False" {% if value.lower()=='false' %}selected{% endif %}>False</option>
-        </select>
-        {% else %}
-        <input type="text" name="{{ section }}:{{ key }}" value="{{ value }}">
-        {% endif %}
-
-        {% endif %}
-
-        {% endfor %}
-      </div>
+  <div class="settings">
+    <h1>Settings</h1>
+    <form method="post" id="settings-form" autocomplete="off">
+      <input type="hidden" name="config_version" value="{{ version }}">
+      {% for group in groups %}
+      <details class="settings-group" {% if group.open %}open{% endif %}>
+        <summary>{{ group.title }}<small>{{ group.description }}</small></summary>
+        <div class="settings-fields">
+          {% for field in group.fields %}
+          {% set field_id = 'field-' ~ loop.index ~ '-' ~ field.name|replace(':', '-') %}
+          {% if field.kind == 'bool' %}
+          <div class="field field-check">
+            <input type="hidden" name="{{ field.name }}" value="False">
+            <label>
+              <input type="checkbox" name="{{ field.name }}" value="True" {% if field.checked %}checked{% endif %}>
+              {{ field.label }}{% if field.restart %}<span class="restart-tag">restart</span>{% endif %}
+            </label>
+            {% if field.help %}<div class="field-help">{{ field.help }}</div>{% endif %}
+          </div>
+          {% else %}
+          <div class="field{% if field.kind == 'list' %} field-wide{% endif %}{% if field.error %} field-invalid{% endif %}">
+            <label for="{{ field_id }}">{{ field.label }}{% if field.restart %}<span class="restart-tag">restart</span>{% endif %}</label>
+            {% if field.kind == 'list' %}
+            <textarea id="{{ field_id }}" name="{{ field.name }}" spellcheck="false">{{ field.value }}</textarea>
+            {% elif field.kind == 'secret' %}
+            <input type="password" id="{{ field_id }}" name="{{ field.name }}" autocomplete="new-password"
+                   placeholder="{{ 'Set. Leave blank to keep it.' if field.is_set else 'Not set' }}">
+            {% elif field.kind == 'int' %}
+            <input type="number" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
+            {% elif field.kind == 'time' %}
+            <input type="text" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" placeholder="03:30" required>
+            {% elif field.kind == 'url' %}
+            <input type="url" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
+            {% else %}
+            <input type="text" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
+            {% endif %}
+            {% if field.help %}<div class="field-help">{{ field.help }}</div>{% endif %}
+            {% if field.error %}<div class="field-error" role="alert">{{ field.error }}</div>{% endif %}
+          </div>
+          {% if field.name == 'frame:password_for_auth' %}
+          <div class="field{% if field.confirm_error %} field-invalid{% endif %}">
+            <label for="password-confirm">Confirm password</label>
+            <input type="password" id="password-confirm" name="frame:password_for_auth_confirm" autocomplete="new-password"
+                   placeholder="Only needed when changing it">
+            {% if field.confirm_error %}<div class="field-error" role="alert">{{ field.confirm_error }}</div>{% endif %}
+          </div>
+          {% endif %}
+          {% endif %}
+          {% endfor %}
+        </div>
+      </details>
       {% endfor %}
-      <div class="box" style="width: 100%;">
-        <button type="submit">Save Config</button>
+      <div class="settings-actions">
+        <button type="submit">Save Settings</button>
       </div>
     </form>
   </div>
+{% endblock %}
 
-  <div class="back-button-wrapper">
-    <a href="/" class="button-link">Back to Home</a>
-  </div>
+{% block scripts %}
+  <script>
+    const settingsForm = document.getElementById('settings-form');
+    let unsaved = false;
+
+    settingsForm.addEventListener('input', () => { unsaved = true; });
+    settingsForm.addEventListener('submit', () => { unsaved = false; });
+    window.addEventListener('beforeunload', event => {
+      if (unsaved) event.preventDefault();
+    });
+
+    // A hidden field can't show the browser's own validation message, so open it first.
+    settingsForm.addEventListener('invalid', event => {
+      const group = event.target.closest('details');
+      if (group) group.open = true;
+    }, true);
+  </script>
 {% endblock %}

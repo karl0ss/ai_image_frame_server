@@ -15,3 +15,4 @@ favourites.json
 venv/*
 .kilo/plans/
 .pytest_cache/
+favourites.json.lock

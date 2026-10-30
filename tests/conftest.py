@@ -21,7 +21,7 @@ def config(monkeypatch, tmp_path):
         "frame": {"password_for_auth": "secret", "create_requires_auth": "True", "reload_interval": "60000"},
         "comfyui": {
             "prompt": "base", "topics": "cats,dogs", "models": "a.safetensors",
-            "output_dir": str(output_dir), "comfyui_url": "http://comfy:8188",
+            "output_dir": str(output_dir), "comfyui_url": "http://comfy:8188", "width": "720", "height": "1080",
         },
         "openwebui": {"base_url": "http://openwebui", "api_key": "k", "models": "web-model"},
         "openrouter": {"enabled": "True", "api_key": "k", "models": "vendor/router-model:free"},
@@ -36,7 +36,6 @@ def config(monkeypatch, tmp_path):
     monkeypatch.setattr(generic.ConfigSingleton, "_path", str(path))
     monkeypatch.setattr(generic, "LOG_FILE", str(tmp_path / "prompts_log.jsonl"))
     monkeypatch.setattr(generic, "favourites_file", str(tmp_path / "favourites.json"))
-    monkeypatch.setattr("routes.settings_routes.CONFIG_PATH", str(path))
     generic.ConfigSingleton.reset()
     yield cfg
     generic.ConfigSingleton.reset()

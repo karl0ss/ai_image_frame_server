@@ -28,9 +28,9 @@ def generate_thumbnail(image_path: str, size=(500, 500)) -> str:
 
     if not os.path.exists(thumbnail_path) or should_overwrite:
         try:
-            img = Image.open(image_path)
-            img.thumbnail(size, Image.Resampling.LANCZOS)
-            img.save(thumbnail_path, optimize=True)
+            with Image.open(image_path) as img:
+                img.thumbnail(size, Image.Resampling.LANCZOS)
+                img.save(thumbnail_path, optimize=True)
             logger.info("Created thumbnail: %s", thumbnail_path)
         except Exception as e:
             logger.warning("Error creating thumbnail for %s: %s", image_path, e)

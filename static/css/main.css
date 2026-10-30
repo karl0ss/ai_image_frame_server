@@ -120,3 +120,11 @@ body.with-nav {
 .flash-error {
     background: #7a1f1f;
 }
+
+.flash-success {
+    background: #1f5a1f;
+}
+
+.flash-warning {
+    background: #6b5310;
+}

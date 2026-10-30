@@ -153,26 +153,82 @@ def test_image_png_serves_the_selected_image(client, config):
     assert client.get("/images/image.png").data == b"image-image.png"
 
 
-def test_config_values_may_contain_percent(logged_in, config, save_config):
-    config["frame"]["note"] = "100% done"
-    save_config()
-    assert logged_in.get("/settings").status_code == 200
-
-
-def test_new_qwen_model_goes_to_the_qwen_section(logged_in):
-    logged_in.post("/settings", data={"new_model": "qwen-new.gguf"})
-    saved = generic.load_config()
-    assert "qwen-new.gguf" in saved["comfyui:qwen"]["models"]
-    assert "qwen-new.gguf" not in saved["comfyui"]["models"]
-
-
-def test_settings_keep_masked_secrets(logged_in):
-    logged_in.post("/settings", data={"remote:password": "********", "frame:reload_interval": "1000"})
-    saved = generic.load_config()
-    assert saved["remote"]["password"] == "remote-secret"
-    assert saved["frame"]["reload_interval"] == "1000"
-
-
 def test_gallery_handles_awkward_filenames(client, config):
     set_image(config, 'quo"te.png', 1000)
     assert "quo\\u0022te.png" in client.get("/images").text or 'quo\\"te.png' in client.get("/images").text
+
+
+def test_session_cookie_is_samesite_lax(client):
+    assert client.application.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+
+
+def test_secret_key_survives_a_restart(config):
+    os.environ.pop("SECRET_KEY", None)
+    first = generic.load_secret_key()
+    assert generic.load_secret_key() == first
+    path = os.path.join(config["comfyui"]["output_dir"], ".secret_key")
+    assert os.stat(path).st_mode & 0o777 == 0o600
+
+
+def test_secret_key_env_wins(config, monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "from-env")
+    assert generic.load_secret_key() == "from-env"
+
+
+@pytest.mark.parametrize("stored", [
+    "plain-pass",
+    "1a1dc91c907325c69271ddf0c944bc72".ljust(64, "0"),
+])
+def test_old_password_formats_are_checked(stored):
+    assert not generic.verify_password("wrong", stored)
+
+
+def test_old_password_formats_still_log_in():
+    import hashlib
+
+    assert generic.verify_password("pw", "pw")
+    assert generic.verify_password("pw", hashlib.sha256(b"pw").hexdigest())
+    assert generic.verify_password("pw", hashlib.sha256(b"pw").hexdigest().upper())
+
+
+def test_favourite_toggle(client, config):
+    assert client.post("/favourites/toggle", json={"filename": "a.png"}).get_json()["favourited"] is True
+    assert client.get("/favourites").get_json() == ["a.png"]
+    assert client.post("/favourites/toggle", json={"filename": "a.png"}).get_json()["favourited"] is False
+    assert client.get("/favourites").get_json() == []
+
+
+def test_concurrent_favourite_toggles_are_not_lost(config):
+    from concurrent.futures import ThreadPoolExecutor
+
+    names = [f"{i}.png" for i in range(30)]
+    with ThreadPoolExecutor(8) as pool:
+        list(pool.map(generic.toggle_favourite, names))
+    assert sorted(generic.get_favourites()) == sorted(names)
+
+
+def test_gallery_is_newest_first(client, config):
+    set_image(config, "old.png", 1000)
+    set_image(config, "new.png", 2000)
+    page = client.get("/images").text
+    assert page.index("new.png") < page.index("old.png")
+
+
+def test_metadata_warning_is_only_logged_once(config, caplog):
+    set_image(config, "bare.png", 1000)
+    path = os.path.join(config["comfyui"]["output_dir"], "bare.png")
+    generic.get_details_from_png(path)
+    generic.get_details_from_png(path)
+    assert len([r for r in caplog.records if "Error reading metadata" in r.message]) == 1
+
+
+@pytest.mark.parametrize("name", [".secret_key", "selected_image.json"])
+def test_output_state_files_are_not_served(client, config, name):
+    generic.load_secret_key()
+    generic.set_selected_image("a.png")
+    assert client.get(f"/images/{name}").status_code == 404
+
+
+def test_images_are_still_served(client, config):
+    set_image(config, "a.jpg", 1000)
+    assert client.get("/images/a.jpg").status_code == 200

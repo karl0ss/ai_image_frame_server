@@ -1,7 +1,6 @@
 import functools
-import hmac
 from flask import Blueprint, flash, render_template, request, redirect, url_for, session
-from libs.generic import get_bool, hash_password, load_config
+from libs.generic import get_bool, load_config, verify_password
 
 bp = Blueprint("auth_routes", __name__)
 
@@ -38,17 +37,11 @@ def login():
     if request.method == "POST":
         stored_value = load_config()["frame"]["password_for_auth"]
         submitted_password = request.form.get("password", "")
-        if submitted_password:
-            input_hash = hash_password(submitted_password)
-            if len(stored_value) == 64 and all(c in "0123456789abcdef" for c in stored_value.lower()):
-                authenticated = hmac.compare_digest(input_hash, stored_value)
-            else:
-                authenticated = hmac.compare_digest(submitted_password, stored_value)
-            if authenticated:
-                session["authenticated"] = True
-                if next_url and is_safe_url(next_url):
-                    return redirect(next_url)
-                return redirect(url_for("create_routes.create_image_page"))
+        if submitted_password and verify_password(submitted_password, stored_value):
+            session["authenticated"] = True
+            if next_url and is_safe_url(next_url):
+                return redirect(next_url)
+            return redirect(url_for("create_routes.create_image_page"))
         flash("Incorrect password.", "error")
         return redirect(url_for("auth_routes.login", next=next_url))
 

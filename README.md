@@ -131,3 +131,21 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 ## License
 
 This project is unlicensed.
+
+## Development
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+python -m pyflakes libs routes tests ai_frame_image_server.py
+python -m pytest
+```
+
+The tests use a throwaway config and never contact ComfyUI or a prompt provider.
+
+## Displaying on a frame
+
+The latest image is always at `/images/image.png`, and "Set as Displayed" in the gallery changes what that URL serves. MagicMirror's `MMM-Wallpaper` can point straight at it:
+
+```js
+source: "http://<server>:8088/images/image.png"
+```

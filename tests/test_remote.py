@@ -28,3 +28,18 @@ def test_sudo_password_stays_off_the_command_line():
     manager._sudo("systemctl start comfyui")
     assert client.commands == ["sudo -S -p '' systemctl start comfyui"]
     assert client.stdin.getvalue() == "pa'ss\n"
+
+
+def test_ssh_port_is_used(monkeypatch):
+    connected = {}
+
+    class Client:
+        def set_missing_host_key_policy(self, policy):
+            pass
+
+        def connect(self, host, **kwargs):
+            connected.update(kwargs)
+
+    monkeypatch.setattr(remote.paramiko, "SSHClient", Client)
+    remote.ComfyUIRemoteManager("host", "user", "pw", "comfyui", port=2222)._connect()
+    assert connected["port"] == 2222

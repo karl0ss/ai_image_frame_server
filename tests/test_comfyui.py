@@ -138,7 +138,6 @@ def test_render_writes_the_image_and_frees_memory(comfy, config, save_config):
     generate(comfy)
     assert pixel(image_path(config)) == (0, 0, 255)
     assert len(comfy.queued) == 1
-    assert comfy.freed == 1
 
 
 def test_previous_image_is_archived_only_after_the_render(comfy, config, save_config):
@@ -259,3 +258,18 @@ def test_create_image_without_a_prompt_fails_the_job(monkeypatch, config):
     job = jobs.get_job(jobs.run(comfyui.create_image))
     assert job["status"] == "failed"
     assert "No prompt" in job["error"]
+
+
+@pytest.mark.parametrize("failure", [None, RuntimeError("render failed"), jobs.JobCancelled()])
+def test_memory_is_freed_after_every_outcome(monkeypatch, config, failure):
+    freed = []
+
+    def fake_generate(*args, **kwargs):
+        if failure:
+            raise failure
+
+    monkeypatch.setattr(comfyui, "generate_image", fake_generate)
+    monkeypatch.setattr(comfyui, "free_comfy_memory", lambda: freed.append(True))
+    monkeypatch.setattr(comfyui, "select_model", lambda model: ("SDXL", "a.safetensors"))
+    jobs.run(comfyui.create_image, "a cat")
+    assert freed == [True]

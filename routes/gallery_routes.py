@@ -1,6 +1,6 @@
 import os
 from flask import Blueprint, render_template, request, jsonify
-from libs.generic import get_favourites, save_favourites, load_config, get_selected_image, set_selected_image
+from libs.generic import get_favourites, toggle_favourite as toggle_favourite_file, load_config, get_selected_image, set_selected_image
 
 bp = Blueprint("gallery_routes", __name__)
 
@@ -13,16 +13,21 @@ def gallery():
     image_folder = config["comfyui"]["output_dir"].rstrip("/")
     favourites = get_favourites()
     selected = get_selected_image()
+    favourite_names = set(favourites)
+    entries = []
     try:
-        entries = os.listdir(image_folder)
+        with os.scandir(image_folder) as scan:
+            for entry in scan:
+                if not entry.name.lower().endswith(_IMAGE_EXTENSIONS):
+                    continue
+                try:
+                    entries.append((entry.stat().st_mtime, entry.name))
+                except FileNotFoundError:
+                    continue  # Archived by a render between listing and stat.
     except FileNotFoundError:
-        entries = []
-    images = [
-        {"filename": f, "favourited": f in favourites}
-        for f in entries
-        if f.lower().endswith(_IMAGE_EXTENSIONS)
-    ]
-    images.sort(key=lambda x: os.path.getmtime(os.path.join(image_folder, x["filename"])), reverse=True)
+        pass
+    entries.sort(reverse=True)
+    images = [{"filename": name, "favourited": name in favourite_names} for _, name in entries]
     return render_template("gallery.html", images=images, selected=selected)
 
 @bp.route("/favourites", methods=["GET"])
@@ -39,16 +44,7 @@ def toggle_favourite():
     if not filename or "/" in filename or "\\" in filename or ".." in filename:
         return jsonify({"status": "error", "message": "Invalid filename"}), 400
 
-    favourites = get_favourites()
-    is_favourited = False
-    if filename in favourites:
-        favourites.remove(filename)
-    else:
-        favourites.append(filename)
-        is_favourited = True
-
-    save_favourites(favourites)
-    return jsonify({"status": "success", "favourited": is_favourited})
+    return jsonify({"status": "success", "favourited": toggle_favourite_file(filename)})
 
 
 @bp.route("/select-image", methods=["POST"])

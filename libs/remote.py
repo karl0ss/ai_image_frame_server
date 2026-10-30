@@ -22,8 +22,9 @@ class ComfyUIRemoteManager:
     """
 
     def __init__(self, host: str, username: str, password: str, service: str,
-                 startup_timeout: int = 90):
+                 startup_timeout: int = 90, port: int = 22):
         self.host = host
+        self.port = port
         self.username = username
         self.password = password
         self.service = service
@@ -39,6 +40,7 @@ class ComfyUIRemoteManager:
             logging.getLogger("paramiko").setLevel(logging.ERROR)
             client.connect(
                 self.host,
+                port=self.port,
                 username=self.username,
                 password=self.password,
                 timeout=15,
@@ -151,8 +153,9 @@ class _RemoteState:
                 if not enabled:
                     return None
                 startup_timeout = config.getint("remote", "startup_poll_timeout", fallback=90)
+                port = config.getint("remote", "port", fallback=22)
                 cls._instance = ComfyUIRemoteManager(
-                    host, username, password, service, startup_timeout=startup_timeout
+                    host, username, password, service, startup_timeout=startup_timeout, port=port
                 )
             return cls._instance
 

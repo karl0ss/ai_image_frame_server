@@ -7,7 +7,9 @@ from flask import Flask
 
 from libs import jobs
 from libs.comfyui import create_image
-from libs.generic import create_prompt_with_random_model, get_bool, get_current_version, load_config
+from libs.generic import (
+    create_prompt_with_random_model, get_bool, get_current_version, load_config, load_secret_key
+)
 from routes import (
     auth_routes,
     favourites_routes,
@@ -25,11 +27,8 @@ logger = logging.getLogger(__name__)
 
 def create_app() -> Flask:
     app = Flask(__name__)
-    secret_key = os.environ.get("SECRET_KEY")
-    if not secret_key:
-        import secrets
-        secret_key = secrets.token_hex(32)
-    app.secret_key = secret_key
+    app.secret_key = load_secret_key()
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
     @app.context_processor
     def inject_version():
@@ -61,12 +60,13 @@ def start_scheduler(config) -> None:
     should_schedule = get_bool(config, "frame", "auto_regen", False)
     logger.info("auto_regen config check: %s", should_schedule)
     if should_schedule:
-        logger.info("Initializing scheduled image generation at %s", config["frame"]["regen_time"])
+        regen_time = config.get("frame", "regen_time", fallback="03:00")
+        logger.info("Initializing scheduled image generation at %s", regen_time)
         scheduler = BackgroundScheduler()
-        h, m = config["frame"]["regen_time"].split(":")
+        h, m = regen_time.split(":")
         scheduler.add_job(scheduled_task, "cron", hour=h, minute=m, id="scheduled_task", max_instances=1, replace_existing=True)
         scheduler.start()
-        logger.info("Scheduled image generation active - will run daily at %s", config["frame"]["regen_time"])
+        logger.info("Scheduled image generation active - will run daily at %s", regen_time)
 
 
 def main() -> None:

@@ -242,9 +242,6 @@ def generate_image(
 
         logger.debug("Image generated successfully for UID: %s", file_name)
 
-        # Run finished - hand VRAM/RAM back instead of leaving the 12-20B models resident
-        free_comfy_memory()
-
     except jobs.JobCancelled:
         logger.info("Generation of %s was cancelled.", file_name)
         raise
@@ -329,40 +326,44 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
     # generation and shut it down afterwards. Reference counted so concurrent
     # jobs keep it alive until the last one finishes.
     with RemoteService():
-        selected_workflow, model = select_model(model)
-        jobs.update_current(model=model)
-        if selected_workflow == "FLUX":
-            generate_image(
-                file_name="image",
-                comfy_prompt=prompt,
-                workflow_path="./workflow_flux.json",
-                prompt_node="CLIP Text Encode (Positive Prompt)",
-                seed_node="RandomNoise",
-                seed_param="noise_seed",
-                save_node="Save Image",
-                save_param="filename_prefix",
-                model_node="UnetLoaderGGUFDisTorchMultiGPU",
-                model_param="unet_name",
-                model=model
-            )
-        elif selected_workflow == "Qwen":
-            generate_image(
-                file_name="image",
-                comfy_prompt=prompt,
-                workflow_path="./workflow_qwen.json",
-                prompt_node="Positive",
-                seed_node="KSampler",
-                seed_param="seed",
-                save_node="Save Image",
-                save_param="filename_prefix",
-                model_node="Load Checkpoint",
-                model_param="ckpt_name",
-                model=model
-            )
-        else:
-            generate_image("image", comfy_prompt=prompt, model=model)
+        try:
+            selected_workflow, model = select_model(model)
+            jobs.update_current(model=model)
+            if selected_workflow == "FLUX":
+                generate_image(
+                    file_name="image",
+                    comfy_prompt=prompt,
+                    workflow_path="./workflow_flux.json",
+                    prompt_node="CLIP Text Encode (Positive Prompt)",
+                    seed_node="RandomNoise",
+                    seed_param="noise_seed",
+                    save_node="Save Image",
+                    save_param="filename_prefix",
+                    model_node="UnetLoaderGGUFDisTorchMultiGPU",
+                    model_param="unet_name",
+                    model=model
+                )
+            elif selected_workflow == "Qwen":
+                generate_image(
+                    file_name="image",
+                    comfy_prompt=prompt,
+                    workflow_path="./workflow_qwen.json",
+                    prompt_node="Positive",
+                    seed_node="KSampler",
+                    seed_param="seed",
+                    save_node="Save Image",
+                    save_param="filename_prefix",
+                    model_node="Load Checkpoint",
+                    model_param="ckpt_name",
+                    model=model
+                )
+            else:
+                generate_image("image", comfy_prompt=prompt, model=model)
 
-        logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
+            logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
+        finally:
+            # Hand VRAM/RAM back after every run, including failed and cancelled ones.
+            free_comfy_memory()
 
 
 _MODEL_LOADER_NODES = (
