@@ -1,5 +1,6 @@
 # DATA_DIR must already contain favourites.json, prompts_log.jsonl and user_config.cfg:
-# Docker creates missing bind-mount sources as directories.
+# Docker creates missing bind-mount sources as directories. The default is an absolute
+# path so a stack deployed from git, which has no local files, still finds the real data.
 services:
   ai_frame_image_server:
     image: kithub.k-world.me.uk/karl/ai-frame-image-server:latest
@@ -7,10 +8,10 @@ services:
     environment:
       - SECRET_KEY=${SECRET_KEY:-}
     volumes:
-      - ${DATA_DIR:-.}/output:/app/output
-      - ${DATA_DIR:-.}/user_config.cfg:/app/user_config.cfg
-      - ${DATA_DIR:-.}/favourites.json:/app/favourites.json
-      - ${DATA_DIR:-.}/prompts_log.jsonl:/app/prompts_log.jsonl
+      - ${DATA_DIR:-/mnt/1TBNvme/docker_data/ai_frame_image_server}/output:/app/output
+      - ${DATA_DIR:-/mnt/1TBNvme/docker_data/ai_frame_image_server}/user_config.cfg:/app/user_config.cfg
+      - ${DATA_DIR:-/mnt/1TBNvme/docker_data/ai_frame_image_server}/favourites.json:/app/favourites.json
+      - ${DATA_DIR:-/mnt/1TBNvme/docker_data/ai_frame_image_server}/prompts_log.jsonl:/app/prompts_log.jsonl
     ports:
       - 8088:5001
     restart: unless-stopped
