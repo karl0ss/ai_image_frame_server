@@ -109,7 +109,7 @@
     <script>
         const frameImage = document.getElementById('frame-image');
         const framePrompt = document.getElementById('frame-prompt');
-        let current = { version: {{ version|tojson }}, selected: {{ selected|tojson }} };
+        let current = { image_version: {{ image_version|tojson }}, selected: {{ selected|tojson }} };
 
         function clearSelection() {
             fetch('/select-image', {
@@ -133,7 +133,7 @@
                         location.reload();
                         return;
                     }
-                    if (state.version === current.version || !state.version) return;
+                    if (state.image_version === current.image_version || !state.image_version) return;
                     // Load it first so the old image stays up until the new one is ready.
                     const next = new Image();
                     next.onload = () => {

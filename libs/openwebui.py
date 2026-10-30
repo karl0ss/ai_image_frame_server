@@ -13,7 +13,7 @@ def create_prompt_on_openwebui(base_prompt: str, topic: str | None = "random", m
     model = model or config["openwebui"]["models"].split(",")[0].strip()
 
     client = OpenWebUIClient(
-        base_url=config["openwebui"]["base_url"],
+        base_url=config["openwebui"]["base_url"].rstrip("/"),
         token=config["openwebui"]["api_key"],
         default_model_id=model
     )

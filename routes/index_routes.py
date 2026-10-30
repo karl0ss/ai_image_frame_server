@@ -12,14 +12,14 @@ def _frame_state() -> dict:
     image_path = os.path.join(config["comfyui"]["output_dir"], image_filename)
     details = get_details_from_png(image_path)
     try:
-        version = int(os.path.getmtime(image_path))
+        image_version = int(os.path.getmtime(image_path))
     except OSError:
-        version = 0
+        image_version = 0
     return {
         "image": image_filename,
         # The version changes the URL, so no browser or proxy can reuse the previous image.
-        "url": url_for("image_routes.serve_image", filename=image_filename, v=version),
-        "version": version,
+        "url": url_for("image_routes.serve_image", filename=image_filename, v=image_version),
+        "image_version": image_version,
         "prompt": details.get("p", "") or "No prompt available",
         "selected": selected,
     }

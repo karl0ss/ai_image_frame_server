@@ -131,5 +131,24 @@ def test_provider_does_not_add_instructions_twice(monkeypatch, config):
     assert questions[0].count("Can you generate me") == 1
 
 
+def test_openwebui_url_has_no_trailing_slash(monkeypatch, config, save_config):
+    import libs.openwebui as openwebui
+
+    seen = {}
+
+    class FakeClient:
+        def __init__(self, base_url, **kwargs):
+            seen["url"] = base_url
+
+        def chat(self, **kwargs):
+            return {"response": '"a fine prompt"'}
+
+    config["openwebui"]["base_url"] = "http://openwebui:3000/"
+    save_config()
+    monkeypatch.setattr(openwebui, "OpenWebUIClient", FakeClient)
+    openwebui.create_prompt_on_openwebui("base", None, "web-model")
+    assert seen["url"] == "http://openwebui:3000"
+
+
 def test_build_request_content():
     assert generic.build_request_content("complete", None) == "complete"

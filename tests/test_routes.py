@@ -138,7 +138,7 @@ def test_frame_page_is_revalidated(client, config):
 
 def test_frame_state_without_an_image(client):
     state = client.get("/api/frame").get_json()
-    assert state["version"] == 0
+    assert state["image_version"] == 0
     assert state["prompt"] == "No prompt available"
 
 
@@ -232,3 +232,10 @@ def test_output_state_files_are_not_served(client, config, name):
 def test_images_are_still_served(client, config):
     set_image(config, "a.jpg", 1000)
     assert client.get("/images/a.jpg").status_code == 200
+
+
+@pytest.mark.parametrize("path", ["/", "/settings", "/images", "/create_image", "/image_queued?job=x"])
+def test_every_page_shows_the_app_version(logged_in, config, path):
+    set_image(config, "image.png", 1000)
+    assert f">v{generic.get_current_version()}<" in logged_in.get(path).text
+

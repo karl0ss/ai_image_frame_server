@@ -8,7 +8,7 @@ bp = Blueprint('settings_route', __name__)
 
 def _render(text: str, form=None, errors=None, status: int = 200):
     groups = build_groups(parse_config(text), form, errors)
-    return render_template("settings.html", groups=groups, version=text_version(text)), status
+    return render_template("settings.html", groups=groups, config_version=text_version(text)), status
 
 
 @bp.route('/settings', methods=['GET', 'POST'])

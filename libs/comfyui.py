@@ -20,6 +20,7 @@ from libs.remote import RemoteService
 logger = logging.getLogger(__name__)
 
 COMFY_TIMEOUT = 10
+QUEUE_TIMEOUT = 60
 IMAGE_FETCH_TIMEOUT = 60
 POLL_INTERVAL = 2
 MISSING_POLLS_LIMIT = 5
@@ -104,7 +105,9 @@ def free_comfy_memory() -> None:
 
 
 def _queue_prompt(workflow: dict) -> str:
-    response = requests.post(_comfy_url("/prompt"), json={"prompt": workflow}, timeout=COMFY_TIMEOUT)
+    # Generous because ComfyUI's API stalls while its web UI loads, and timing out here
+    # after ComfyUI accepted the prompt would make the retry queue a duplicate.
+    response = requests.post(_comfy_url("/prompt"), json={"prompt": workflow}, timeout=QUEUE_TIMEOUT)
     if response.status_code != 200:
         raise RuntimeError(f"ComfyUI rejected the workflow ({response.status_code}): {response.text[:300]}")
     return response.json()["prompt_id"]

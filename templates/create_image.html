@@ -133,9 +133,9 @@
         }
     }
     .queue-dropdown {
-        position: absolute;
-        top: 100%;
-        right: 0;
+        position: fixed;
+        top: 50px;
+        right: 10px;
         background: #222;
         border: 1px solid #444;
         border-radius: 5px;
@@ -144,7 +144,8 @@
         display: none;
         max-height: 300px;
         overflow-y: auto;
-        width: 400px;
+        width: min(400px, calc(100vw - 20px));
+        white-space: normal;
     }
 
     .queue-item {
@@ -183,15 +184,12 @@
 </style>
 {% endblock %}
 
+{% block nav_actions %}
+<button type="button" id="queue-btn">Queue: <span id="queue-count">{{ queue_count | default(0) }}</span></button>
+<div id="queue-dropdown" class="queue-dropdown"></div>
+{% endblock %}
+
 {% block content %}
-<div class="queue-container" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
-    <button id="queue-btn" style="background: #333; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">
-        Queue: <span id="queue-count">{{ queue_count | default(0) }}</span>
-    </button>
-    <div id="queue-dropdown" class="queue-dropdown">
-        <!-- Queue items will be populated here -->
-    </div>
-</div>
 <h1 style="margin-bottom: 20px;">Create An Image</h1>
 
 <textarea id="prompt-box" placeholder="Enter your custom prompt here..."></textarea>
