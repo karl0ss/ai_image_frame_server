@@ -204,8 +204,8 @@
 
         function createImageElement(image) {
             const img = document.createElement('img');
-            img.src = `/images/thumbnails/${image.filename}`;
-            img.dataset.fullsrc = `/images/${image.filename}`;
+            img.src = `/images/thumbnails/${image.filename}?v=${image.version}`;
+            img.dataset.fullsrc = `/images/${image.filename}?v=${image.version}`;
             img.dataset.filename = image.filename;
             img.dataset.favourited = image.favourited;
             img.loading = 'lazy';

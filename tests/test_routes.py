@@ -214,6 +214,13 @@ def test_gallery_is_newest_first(client, config):
     assert page.index("new.png") < page.index("old.png")
 
 
+def test_gallery_urls_change_when_an_image_is_replaced(client, config):
+    set_image(config, "image.png", 1000)
+    assert '"version":1000' in client.get("/images").text.replace(" ", "")
+    set_image(config, "image.png", 2000)
+    assert '"version":2000' in client.get("/images").text.replace(" ", "")
+
+
 def test_metadata_warning_is_only_logged_once(config, caplog):
     set_image(config, "bare.png", 1000)
     path = os.path.join(config["comfyui"]["output_dir"], "bare.png")

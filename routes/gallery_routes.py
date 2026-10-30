@@ -27,7 +27,11 @@ def gallery():
     except FileNotFoundError:
         pass
     entries.sort(reverse=True)
-    images = [{"filename": name, "favourited": name in favourite_names} for _, name in entries]
+    # Cloudflare gives these a 4 hour browser cache, and image.png keeps its URL between renders.
+    images = [
+        {"filename": name, "favourited": name in favourite_names, "version": int(mtime)}
+        for mtime, name in entries
+    ]
     return render_template("gallery.html", images=images, selected=selected)
 
 @bp.route("/favourites", methods=["GET"])
