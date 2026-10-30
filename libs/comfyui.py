@@ -65,6 +65,18 @@ def cancel_current_job() -> str:
         return "Failed to cancel"
 
 
+def free_comfy_memory() -> None:
+    """Asks ComfyUI to evict loaded models from VRAM/RAM once a generation run is done."""
+    try:
+        url = load_config()["comfyui"]["comfyui_url"] + "/free"
+        response = requests.post(url, json={"unload_models": True, "free_memory": True})
+        if response.status_code == 200:
+            logger.debug("Requested comfy memory free")
+        else:
+            logger.error("Comfy memory free failed: %s", response.status_code)
+    except Exception as e:
+        logger.error("Failed to request comfy memory free: %s", e)
+
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_fixed(5),
@@ -134,6 +146,9 @@ def generate_image(
                 generate_thumbnail(output_path)
 
         logger.debug("Image generated successfully for UID: %s", file_name)
+
+        # Run finished - hand VRAM/RAM back instead of leaving the 12-20B models resident
+        free_comfy_memory()
 
     except Exception as e:
         logger.error("Failed to generate image for UID: %s. Error: %s", file_name, e)
