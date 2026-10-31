@@ -117,9 +117,9 @@ def create_prompt_on_openrouter(base_prompt: str, topic: str | None = "random", 
         return prompt
     except RateLimitError as e:
         logger.warning("OpenRouter rate limit exceeded (429): %s. Falling back to local OpenWebUI model.", e)
-        if "openwebui" in config and "models" in config["openwebui"]:
-            from libs.openwebui import create_prompt_on_openwebui
-            openwebui_models = [m.strip() for m in config["openwebui"]["models"].split(",") if m.strip()]
+        if "openwebui" in config:
+            from libs.openwebui import create_prompt_on_openwebui, get_usable_models
+            openwebui_models = get_usable_models(config)
             if openwebui_models:
                 selected_model = random.choice(openwebui_models)
                 try:

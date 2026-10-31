@@ -150,5 +150,81 @@ def test_openwebui_url_has_no_trailing_slash(monkeypatch, config, save_config):
     assert seen["url"] == "http://openwebui:3000"
 
 
+@pytest.fixture
+def fake_openwebui(monkeypatch, config):
+    """Stands in for the OpenWebUI client; models in `failing` return no response."""
+    import libs.openwebui as openwebui
+
+    class FakeClient:
+        listed = [{"id": "live-model"}, {"id": "nomic-embed-v1.5"}, {"id": "arena-model"}]
+        failing = set()
+        asked = []
+
+        def __init__(self, default_model_id, **kwargs):
+            self.model = default_model_id
+
+        def list_models(self):
+            return FakeClient.listed
+
+        def chat(self, **kwargs):
+            FakeClient.asked.append(self.model)
+            return None if self.model in FakeClient.failing else {"response": '"a fine prompt"'}
+
+    FakeClient.failing = set()
+    FakeClient.asked = []
+    monkeypatch.setattr(openwebui, "OpenWebUIClient", FakeClient)
+    monkeypatch.setattr(openwebui, "_ALL_MODELS_CACHE", None)
+    return FakeClient
+
+
+def test_openwebui_lists_only_chat_models_when_flag_is_on(fake_openwebui, config, save_config):
+    config["openwebui"]["list_all_models"] = "True"
+    save_config()
+    groups = {label: models for label, _, models in generic.load_prompt_model_groups()}
+    assert groups["OpenWebUI (All)"] == ["live-model"]
+
+
+def test_openwebui_flag_off_adds_no_group(fake_openwebui):
+    labels = [label for label, _, _ in generic.load_prompt_model_groups()]
+    assert "OpenWebUI (All)" not in labels
+
+
+def test_openwebui_flag_works_with_no_models_listed(fake_openwebui, config, save_config):
+    import libs.openwebui as openwebui
+
+    config["openwebui"]["models"] = ""
+    config["openwebui"]["list_all_models"] = "True"
+    save_config()
+    assert openwebui.create_prompt_on_openwebui("base", None) == "a fine prompt"
+    assert fake_openwebui.asked == ["live-model"]
+
+
+def test_openwebui_stale_model_falls_back_to_a_listed_one(fake_openwebui, config, save_config):
+    import libs.openwebui as openwebui
+
+    config["openwebui"]["list_all_models"] = "True"
+    save_config()
+    fake_openwebui.failing = {"web-model"}
+    assert openwebui.create_prompt_on_openwebui("base", None, "web-model") == "a fine prompt"
+    assert fake_openwebui.asked == ["web-model", "live-model"]
+
+
+def test_openwebui_gives_up_when_every_model_fails(fake_openwebui, config, save_config):
+    import libs.openwebui as openwebui
+
+    config["openwebui"]["list_all_models"] = "True"
+    save_config()
+    fake_openwebui.failing = {"web-model", "live-model"}
+    assert openwebui.create_prompt_on_openwebui("base", None, "web-model") is None
+
+
+def test_secondary_topic_reaches_every_generated_prompt(config, save_config):
+    config["comfyui"]["secondary_topic"] = "christmas"
+    save_config()
+    assert "'christmas'" in generic.build_user_content("cats", [])[0]
+    assert "'christmas'" in generic.build_user_content("", [])[0]
+    assert "'christmas'" in generic.build_request_content("base", "random")
+
+
 def test_build_request_content():
     assert generic.build_request_content("complete", None) == "complete"

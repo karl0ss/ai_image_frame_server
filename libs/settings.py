@@ -81,9 +81,9 @@ GROUPS = (
         Field("comfyui:flux", "models", "Flux", LIST),
         Field("comfyui:qwen", "models", "Qwen", LIST),
     )),
-    Group("OpenWebUI", "Writes prompts. Used whenever it has models listed.", (
+    Group("OpenWebUI", "Writes prompts. Used whenever it has models listed or every model is on.", (
         Field("openwebui", "base_url", "URL", URL),
-        *_provider_fields("openwebui"),
+        *_provider_fields("openwebui", Field("openwebui", "list_all_models", "Also use every model", BOOL)),
     )),
     Group("OpenRouter", "Writes prompts.", (
         Field("openrouter", "enabled", "Enabled", BOOL),

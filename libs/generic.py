@@ -411,10 +411,11 @@ def load_topics_from_config():
 def load_prompt_model_groups() -> list[tuple[str, str, list[str]]]:
     """Returns (label, service, models) for every prompt model group that has models."""
     config = load_config()
-    groups = [
-        ("OpenWebUI", "openwebui", _config_models(config, "openwebui", requires_enabled=False)),
-        ("OpenRouter", "openrouter", _config_models(config, "openrouter")),
-    ]
+    groups = [("OpenWebUI", "openwebui", _config_models(config, "openwebui", requires_enabled=False))]
+    if get_bool(config, "openwebui", "list_all_models", False):
+        from libs.openwebui import get_all_models
+        groups.append(("OpenWebUI (All)", "openwebui", get_all_models()))
+    groups.append(("OpenRouter", "openrouter", _config_models(config, "openrouter")))
     if get_bool(config, "openrouter", "enabled", False) and get_bool(config, "openrouter", "list_all_free_models", False):
         from libs.openrouter import get_free_models
         groups.append(("OpenRouter Free", "openrouter", get_free_models()))

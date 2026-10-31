@@ -31,6 +31,7 @@ models = flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf
 base_url = https://openwebui
 api_key = sk-
 models = llama3:latest,cogito:14b,gemma3:12b
+list_all_models = False
 
 [openrouter]
 enabled = False
