@@ -296,3 +296,21 @@ def test_failed_prompt_service_is_reported_as_a_step(monkeypatch, calls):
 
 def test_build_request_content():
     assert generic.build_request_content("complete", None) == "complete"
+
+
+def test_me_request_asks_for_one_scene_and_not_a_second_idea(config):
+    content = generic.build_request_content(generic.ME_PROMPT, "pixelart")
+    assert "random image idea" not in content
+    assert "exactly one scene" in content
+    assert "'pixelart'" in content
+
+
+def test_me_request_is_used_when_generating_with_a_random_model(config, monkeypatch):
+    sent = []
+    monkeypatch.setattr(generic, "try_prompt_service", lambda service, model, prompt, attempts=1: sent.append(prompt) or "scene")
+    generic._generate_prompt([("ollama", "m")], generic.ME_PROMPT, "pixelart", [])
+    assert "random image idea" not in sent[0]
+
+
+def test_normal_requests_still_ask_for_a_random_idea(config):
+    assert "random image idea" in generic.build_request_content("base", "cats")

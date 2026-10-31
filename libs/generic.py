@@ -36,11 +36,17 @@ SYSTEM_PROMPT = (
 )
 
 ME_PROMPT = (
-    "Write one instruction for an image editing model that puts the man from the reference image in a new scene. "
-    "Start with the art style, usually 'Photorealistic photo of the man from the reference image', "
-    "and show him from the waist up. Say what he is doing, what he is with and where he is. "
+    "Write one instruction for an image editing model that puts the man from the reference image in one new scene. "
+    "Begin with 'Photorealistic photo of the man from the reference image'. If the theme is an art style, "
+    "begin with that style instead, such as '16-bit pixel art of the man from the reference image'. "
+    "Show him from the waist up. Say what he is doing, what he is with and where he is. "
     "Never describe his face, hair, beard or age."
 )
+
+IDEA_REQUEST = (
+    "Can you generate me a really random image idea, Do not exceed 20 words. Use clear language, not poetic metaphors."
+)
+ME_IDEA_REQUEST = "Write exactly one scene as one sentence, in no more than 25 words. Use clear language, not poetic metaphors."
 
 PROMPT_SERVICES = {
     "openwebui": ("libs.openwebui", "create_prompt_on_openwebui"),
@@ -451,7 +457,13 @@ def load_prompt_models_from_config() -> list[tuple[str, str]]:
     return [(service, model) for _, service, models in load_prompt_model_groups() for model in models]
 
 
-def build_user_content(topic: str = "random", recent_prompts: list[str] | None = None) -> tuple[str, str]:
+def _idea_request(base_prompt: str) -> str:
+    return ME_IDEA_REQUEST if base_prompt == ME_PROMPT else IDEA_REQUEST
+
+
+def build_user_content(
+    topic: str = "random", recent_prompts: list[str] | None = None, idea_request: str = IDEA_REQUEST
+) -> tuple[str, str]:
     config = load_config()
     topic_instruction = ""
     selected_topic = ""
@@ -485,7 +497,7 @@ def build_user_content(topic: str = "random", recent_prompts: list[str] | None =
         secondary_topic_instruction = f" Additionally incorporate the theme of '{secondary_topic}' into the new prompt."
 
     user_content = (
-        "Can you generate me a really random image idea, Do not exceed 20 words. Use clear language, not poetic metaphors."
+        idea_request
         + topic_instruction
         + secondary_topic_instruction
         + "Avoid prompts similar to the following:"
@@ -499,7 +511,7 @@ def build_request_content(base_prompt: str, topic: str | None) -> str:
     """Builds the user message for a provider. topic=None means base_prompt is already complete."""
     if topic is None:
         return base_prompt
-    user_content, _ = build_user_content(topic)
+    user_content, _ = build_user_content(topic, idea_request=_idea_request(base_prompt))
     return f"{base_prompt}\n\n{user_content}" if base_prompt else user_content
 
 
@@ -539,7 +551,7 @@ def try_prompt_service(
 
 def _generate_prompt(prompt_models: list, base_prompt: str, topic: str, recent_prompts: list[str]):
     service, model = random.choice(prompt_models)
-    user_content, selected_topic = build_user_content(topic, recent_prompts)
+    user_content, selected_topic = build_user_content(topic, recent_prompts, _idea_request(base_prompt))
     full_prompt = base_prompt + "\n\n" + user_content
 
     result = try_prompt_service(service, model, full_prompt, attempts=2 if service == "openwebui" else 1)
