@@ -21,6 +21,7 @@ from datetime import datetime
 from PIL import Image
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from libs import jobs
 from libs.create_thumbnail import generate_thumbnail
 
 logger = logging.getLogger(__name__)
@@ -504,12 +505,16 @@ def try_prompt_service(
     for attempt in range(attempts):
         try:
             logging.info("Generating prompt with %s using model: %s", service, model)
+            jobs.log_step(f"Prompt model selected: {model} ({service})")
             result = _call_prompt_service(service, model, prompt, topic)
             if result:
+                jobs.log_step("Prompt written")
                 return result
             logging.warning("%s returned no prompt (attempt %d/%d).", service, attempt + 1, attempts)
+            jobs.log_step(f"{service} returned no prompt")
         except Exception as e:
             logging.error("Error with %s: %s", service, e)
+            jobs.log_step(f"{service} failed: {e}")
     return None
 
 
@@ -531,10 +536,12 @@ def _generate_prompt(prompt_models: list, base_prompt: str, topic: str, recent_p
             return result, selected_topic
 
     logging.error("No prompt service produced a result (first tried: %s).", service)
+    jobs.log_step("No prompt service worked, using the stock prompt")
     return "A colorful abstract composition", ""
 
 
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
+    jobs.log_step("Fetching the available prompt models")
     prompt_models = load_prompt_models_from_config()
 
     if not prompt_models:
@@ -550,6 +557,7 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
             return result, selected_topic
         if attempt < max_attempts - 1:
             logging.warning("Generated duplicate prompt (attempt %d/%d), retrying...", attempt + 1, max_attempts)
+            jobs.log_step("That prompt was a repeat, trying again")
 
     logging.warning("All %d attempts produced duplicate prompts.", max_attempts)
     return None, ""

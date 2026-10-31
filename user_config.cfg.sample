@@ -57,6 +57,13 @@ api_key =
 # It must not be empty or the router won't be offered. Use "auto" to let it choose.
 models = auto
 
+[local_llm]
+# Unloaded from the GPU before every ComfyUI render. Leave a URL blank to skip that server.
+llama_swap_url =
+ollama_url =
+# Comma-separated models to leave running, such as CPU-only ones.
+keep_loaded =
+
 [remote]
 # Optionally start the ComfyUI service before generating and stop it after.
 # Service is started/stopped over SSH on `host` via `sudo systemctl`.

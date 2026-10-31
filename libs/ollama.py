@@ -1,6 +1,7 @@
 import logging
 import random
 import time
+from libs import jobs
 from libs.generic import load_config, build_request_content, extract_prompt, SYSTEM_PROMPT, get_bool
 
 logger = logging.getLogger(__name__)
@@ -132,6 +133,7 @@ def _try_fallback_models(client, configured_models, failed_model, full_content):
     for fallback_model in fallback_models[:3]:
         try:
             logger.info("Trying fallback model: %s", fallback_model)
+            jobs.log_step(f"Trying fallback model: {fallback_model}")
             response = client.chat(
                 model=fallback_model,
                 messages=[{"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{full_content}"}]

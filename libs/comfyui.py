@@ -14,6 +14,7 @@ from tenacity import (
 )
 from libs import jobs
 from libs.generic import rename_image, load_config, save_prompt, get_bool
+from libs.local_llm import unload_local_models
 from libs.create_thumbnail import generate_thumbnail
 from libs.remote import RemoteService
 
@@ -121,6 +122,8 @@ def _wait_for_render(prompt_id: str) -> dict:
     """
     deadline = time.monotonic() + RENDER_TIMEOUT
     missing = 0
+    started = False
+    ahead = None
     while time.monotonic() < deadline:
         try:
             response = requests.get(_comfy_url(f"/history/{prompt_id}"), timeout=COMFY_TIMEOUT)
@@ -130,10 +133,18 @@ def _wait_for_render(prompt_id: str) -> dict:
                 return entry
 
             queue = _get_queue()
+            pending = [item[1] for item in queue.get("queue_pending", [])]
             if any(item[1] == prompt_id for item in queue.get("queue_running", [])):
                 jobs.update_current(status="rendering")
+                if not started:
+                    jobs.log_step("ComfyUI started rendering")
+                    started = True
                 missing = 0
-            elif any(item[1] == prompt_id for item in queue.get("queue_pending", [])):
+            elif prompt_id in pending:
+                position = pending.index(prompt_id) + len(queue.get("queue_running", []))
+                if position != ahead:
+                    jobs.log_step(f"In the ComfyUI queue, {position} ahead")
+                    ahead = position
                 missing = 0
             else:
                 missing += 1
@@ -235,7 +246,11 @@ def generate_image(
         logger.debug("Generating image: %s", file_name)
         jobs.update_current(status="waiting")
         with _image_write_lock:
+            # Inside the lock so a second job's prompt model cannot load between this and the render.
+            unload_local_models()
+            jobs.log_step("Sending the job to ComfyUI")
             entry = _wait_for_render(_queue_prompt(wf))
+            jobs.log_step("Render finished, saving the image")
             image_data = _fetch_image(_first_output_image(entry, wf.get_node_id(save_node)))
 
             rename_image()
@@ -250,6 +265,7 @@ def generate_image(
         raise
     except Exception as e:
         logger.error("Failed to generate image for UID: %s. Error: %s", file_name, e)
+        jobs.log_step(f"Render failed: {e}")
         raise
 
 
@@ -332,6 +348,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
         try:
             selected_workflow, model = select_model(model)
             jobs.update_current(model=model)
+            jobs.log_step(f"Image model selected: {model} ({selected_workflow})")
             if selected_workflow == "FLUX":
                 generate_image(
                     file_name="image",
@@ -366,6 +383,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
             logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
         finally:
             # Hand VRAM/RAM back after every run, including failed and cancelled ones.
+            jobs.log_step("Freeing ComfyUI memory")
             free_comfy_memory()
 
 

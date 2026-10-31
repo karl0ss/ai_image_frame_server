@@ -100,6 +100,12 @@ GROUPS = (
         Field("freellmapi", "base_url", "URL", URL, "For example http://192.168.4.10:3005"),
         *_provider_fields("freellmapi"),
     ), enabled_field="freellmapi:enabled"),
+    Group("Local LLMs", "Unloaded from the GPU before every ComfyUI render. Leave a URL blank to skip that server.", (
+        Field("local_llm", "llama_swap_url", "llama-swap URL", URL, "For example http://192.168.4.10:8099"),
+        Field("local_llm", "ollama_url", "Ollama URL", URL, "For example http://192.168.4.10:11434"),
+        Field("local_llm", "keep_loaded", "Keep loaded", LIST,
+              "One per line. Models that hold no GPU memory, such as CPU-only ones."),
+    )),
     Group("Remote ComfyUI", "Starts the ComfyUI service over SSH before a render and stops it after.", (
         Field("remote", "enabled", "Enabled", BOOL, restart=True),
         Field("remote", "host", "Host", restart=True),

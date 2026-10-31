@@ -24,6 +24,7 @@ class Job:
     error: str = ""
     created: float = field(default_factory=time.time)
     finished: float | None = None
+    steps: list[dict] = field(default_factory=list)  # {"at": epoch seconds, "text": what happened}
 
 
 _jobs: OrderedDict[str, Job] = OrderedDict()
@@ -84,6 +85,16 @@ def update_current(**fields) -> None:
     with _lock:
         for name, value in fields.items():
             setattr(job, name, value)
+
+
+def log_step(text: str) -> None:
+    """Records a progress line for the job page and the server log."""
+    logger.info("Step: %s", text)
+    job = getattr(_current, "job", None)
+    if job is None:
+        return
+    with _lock:
+        job.steps.append({"at": time.time(), "text": text})
 
 
 def get_job(job_id: str) -> dict | None:

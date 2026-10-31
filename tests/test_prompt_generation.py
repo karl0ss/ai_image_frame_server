@@ -275,5 +275,24 @@ def test_secondary_topic_reaches_every_generated_prompt(config, save_config):
     assert "'christmas'" in generic.build_request_content("base", "random")
 
 
+def test_prompt_steps_name_the_selected_model(monkeypatch, calls):
+    from libs import jobs
+
+    only(monkeypatch, "ollama")
+    job_id = jobs.run(lambda: generic.create_prompt_with_random_model("base", "cats"))
+    steps = [s["text"] for s in jobs.get_job(job_id)["steps"]]
+    assert "Prompt model selected: model (ollama)" in steps
+    assert steps[-1] == "Prompt written"
+
+
+def test_failed_prompt_service_is_reported_as_a_step(monkeypatch, calls):
+    from libs import jobs
+
+    only(monkeypatch, "ollama")
+    calls.results = {"ollama": RuntimeError("boom")}
+    job_id = jobs.run(lambda: generic.create_prompt_with_random_model("base", "cats"))
+    assert "ollama failed: boom" in [s["text"] for s in jobs.get_job(job_id)["steps"]]
+
+
 def test_build_request_content():
     assert generic.build_request_content("complete", None) == "complete"

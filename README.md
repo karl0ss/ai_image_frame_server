@@ -95,6 +95,9 @@ The application is configured via the `user_config.cfg` file.
 | `[openwebui]` | `api_key`          | The API key for OpenWebUI.                                                  | `sk-`                 |
 | `[openwebui]` | `models`           | A comma-separated list of models for OpenWebUI.                             | `llama3:latest,cogito:14b,gemma3:12b` |
 | `[openwebui]` | `list_all_models`  | Also use every chat model OpenWebUI lists (`True`/`False`).                 | `False`               |
+| `[local_llm]` | `llama_swap_url`   | llama-swap server to clear before each render.                              |                       |
+| `[local_llm]` | `ollama_url`       | Ollama server to clear before each render.                                  |                       |
+| `[local_llm]` | `keep_loaded`      | Comma-separated models to leave running, such as CPU-only ones.             |                       |
 | `[openrouter]` | `enabled`          | Enable OpenRouter integration (`True`/`False`).                             | `False`               |
 | `[openrouter]` | `api_key`          | The API key for OpenRouter.                                                 |                       |
 | `[openrouter]` | `models`           | A comma-separated list of models for OpenRouter.                            | `mistralai/mistral-7b-instruct:free,google/gemma-7b-it:free,meta-llama/llama-3.1-8b-instruct:free` |

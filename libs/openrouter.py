@@ -2,6 +2,7 @@ import logging
 import random
 import time
 from openai import OpenAI, RateLimitError
+from libs import jobs
 from libs.generic import load_config, build_request_content, extract_prompt, SYSTEM_PROMPT, get_bool
 
 logger = logging.getLogger(__name__)
@@ -117,12 +118,14 @@ def create_prompt_on_openrouter(base_prompt: str, topic: str | None = "random", 
         return prompt
     except RateLimitError as e:
         logger.warning("OpenRouter rate limit exceeded (429): %s. Falling back to local OpenWebUI model.", e)
+        jobs.log_step("OpenRouter is rate limited, trying OpenWebUI")
         if "openwebui" in config:
             from libs.openwebui import create_prompt_on_openwebui, get_usable_models
             openwebui_models = get_usable_models(config)
             if openwebui_models:
                 selected_model = random.choice(openwebui_models)
                 try:
+                    jobs.log_step(f"Prompt model selected: {selected_model} (openwebui)")
                     return create_prompt_on_openwebui(full_content, None, selected_model)
                 except Exception as e2:
                     logger.error("OpenWebUI fallback also failed: %s", e2)
@@ -144,6 +147,7 @@ def create_prompt_on_openrouter(base_prompt: str, topic: str | None = "random", 
         for fallback_model in fallback_models[:3]:
             try:
                 logger.info("Trying fallback model: %s", fallback_model)
+                jobs.log_step(f"Trying fallback model: {fallback_model}")
                 completion = client.chat.completions.create(
                     model=fallback_model,
                     messages=[{"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{full_content}"}]

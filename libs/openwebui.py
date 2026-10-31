@@ -6,12 +6,13 @@ from datetime import datetime
 
 import requests
 
+from libs import jobs
 from libs.generic import load_config, build_request_content, extract_prompt, SYSTEM_PROMPT, get_bool
 
 logger = logging.getLogger(__name__)
 
 LLM_TIMEOUT = 300
-MODELS_TIMEOUT = 15
+MODELS_TIMEOUT = 30
 CHAT_FOLDER = "ai-frame-image-server"
 
 _ALL_MODELS_CACHE = None
@@ -125,6 +126,7 @@ def _try_fallback_models(config, configured_models, failed_model, full_content):
 
     for fallback_model in random.sample(fallback_models, min(3, len(fallback_models))):
         logger.info("Trying fallback model: %s", fallback_model)
+        jobs.log_step(f"Trying fallback model: {fallback_model}")
         prompt = _chat(config, fallback_model, full_content)
         if prompt:
             logger.info("Successfully generated prompt with fallback model: %s", fallback_model)

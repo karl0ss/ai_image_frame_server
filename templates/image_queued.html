@@ -9,7 +9,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             text-align: center;
         }
         .message {
@@ -30,6 +30,28 @@
             color: #aaa;
             margin-bottom: 20px;
         }
+        .job-steps {
+            list-style: none;
+            margin: 0 0 24px;
+            padding: 0;
+            max-width: 80vw;
+            color: #aaa;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+        .job-steps li {
+            display: flex;
+            gap: 12px;
+            padding: 3px 0;
+        }
+        .job-steps li:last-child {
+            color: #fff;
+        }
+        .job-steps time {
+            flex: 0 0 4.5em;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
         .job-actions {
             display: flex;
             gap: 12px;
@@ -43,6 +65,7 @@
     {% if job %}
     <div class="message" id="job-status" role="status">Starting…</div>
     <div class="job-meta" id="job-meta"></div>
+    <ol class="job-steps" id="job-steps" role="log" hidden></ol>
     <div class="prompt-text" id="job-prompt" hidden></div>
     <div class="flash flash-error" id="job-error" role="alert" hidden></div>
     <div class="job-actions">
@@ -72,6 +95,7 @@
         const finishedStates = ['done', 'failed', 'cancelled'];
         const statusEl = document.getElementById('job-status');
         const metaEl = document.getElementById('job-meta');
+        const stepsEl = document.getElementById('job-steps');
         const promptEl = document.getElementById('job-prompt');
         const errorEl = document.getElementById('job-error');
         const cancelButton = document.getElementById('cancel-button');
@@ -83,6 +107,19 @@
             return minutes ? `${minutes}m ${remainder}s` : `${remainder}s`;
         }
 
+        function showSteps(job) {
+            stepsEl.hidden = !job.steps.length;
+            stepsEl.replaceChildren(...job.steps.map(step => {
+                const item = document.createElement('li');
+                const time = document.createElement('time');
+                const text = document.createElement('span');
+                time.textContent = formatElapsed(step.at - job.created);
+                text.textContent = step.text;
+                item.append(time, text);
+                return item;
+            }));
+        }
+
         function showJob(job) {
             const finished = finishedStates.includes(job.status);
             const end = job.finished || Date.now() / 1000;
@@ -90,6 +127,7 @@
             const parts = [formatElapsed(end - job.created)];
             if (job.model) parts.unshift(job.model.split('.')[0]);
             metaEl.textContent = parts.join(' · ');
+            showSteps(job);
             promptEl.textContent = job.prompt;
             promptEl.hidden = !job.prompt;
             errorEl.textContent = job.error;
