@@ -123,6 +123,10 @@ def fake_openwebui(monkeypatch, config):
         asked = []
         bodies = []
         urls = []
+        folders = [{"id": "folder-1", "name": "ai-frame-image-server"}]
+        saved = []
+        created_folders = []
+        save_fails = False
 
     class Response:
         def __init__(self, payload, ok=True):
@@ -136,8 +140,16 @@ def fake_openwebui(monkeypatch, config):
             return self.payload
 
     def request(method, url, headers, timeout, json=None):
-        if method == "GET":
+        if url.endswith("/api/models"):
             return Response({"data": Fake.listed})
+        if url.endswith("/api/v1/folders/"):
+            if method == "GET":
+                return Response(Fake.folders)
+            Fake.created_folders.append(json["name"])
+            return Response({"id": "new-folder"})
+        if url.endswith("/api/v1/chats/new"):
+            Fake.saved.append(json)
+            return Response({}, ok=not Fake.save_fails)
         Fake.urls.append(url)
         Fake.bodies.append(json)
         Fake.asked.append(json["model"])
@@ -146,6 +158,7 @@ def fake_openwebui(monkeypatch, config):
         return Response({"choices": [{"message": {"content": '"a fine prompt"'}}]})
 
     Fake.failing, Fake.asked, Fake.bodies, Fake.urls = set(), [], [], []
+    Fake.saved, Fake.created_folders = [], []
     monkeypatch.setattr(openwebui.requests, "request", request)
     monkeypatch.setattr(openwebui, "_ALL_MODELS_CACHE", None)
     return Fake
@@ -174,6 +187,43 @@ def test_openwebui_request_sends_no_chat_id(fake_openwebui):
     openwebui.create_prompt_on_openwebui("base", None, "web-model")
     assert fake_openwebui.bodies[0]["model"] == "web-model"
     assert "chat_id" not in fake_openwebui.bodies[0]
+
+
+def test_openwebui_saves_the_exchange_as_a_chat(fake_openwebui):
+    import libs.openwebui as openwebui
+
+    openwebui.create_prompt_on_openwebui("base", None, "web-model")
+
+    saved = fake_openwebui.saved[0]
+    assert saved["folder_id"] == "folder-1"
+    messages = saved["chat"]["history"]["messages"]
+    reply = messages[saved["chat"]["history"]["currentId"]]
+    assert reply["content"] == '"a fine prompt"'
+    assert messages[reply["parentId"]]["role"] == "user"
+
+
+def test_openwebui_creates_the_chat_folder_when_missing(fake_openwebui, monkeypatch):
+    import libs.openwebui as openwebui
+
+    monkeypatch.setattr(fake_openwebui, "folders", [])
+    openwebui.create_prompt_on_openwebui("base", None, "web-model")
+    assert fake_openwebui.created_folders == ["ai-frame-image-server"]
+    assert fake_openwebui.saved[0]["folder_id"] == "new-folder"
+
+
+def test_openwebui_keeps_the_prompt_when_saving_fails(fake_openwebui, monkeypatch):
+    import libs.openwebui as openwebui
+
+    monkeypatch.setattr(fake_openwebui, "save_fails", True)
+    assert openwebui.create_prompt_on_openwebui("base", None, "web-model") == "a fine prompt"
+
+
+def test_openwebui_saves_no_chat_for_a_failed_model(fake_openwebui):
+    import libs.openwebui as openwebui
+
+    fake_openwebui.failing = {"web-model"}
+    assert openwebui.create_prompt_on_openwebui("base", None, "web-model") is None
+    assert fake_openwebui.saved == []
 
 
 def test_openwebui_lists_only_chat_models_when_flag_is_on(fake_openwebui, config, save_config):

@@ -1,6 +1,8 @@
 import logging
 import random
 import time
+import uuid
+from datetime import datetime
 
 import requests
 
@@ -10,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 LLM_TIMEOUT = 300
 MODELS_TIMEOUT = 15
+CHAT_FOLDER = "ai-frame-image-server"
 
 _ALL_MODELS_CACHE = None
 _ALL_MODELS_CACHE_TIME = 0.0
@@ -61,17 +64,56 @@ def get_usable_models(config) -> list[str]:
     return configured_models
 
 
+def _folder_id(config) -> str:
+    for folder in _request(config, "GET", "/api/v1/folders/", MODELS_TIMEOUT):
+        if folder["name"] == CHAT_FOLDER:
+            return folder["id"]
+    return _request(config, "POST", "/api/v1/folders/", MODELS_TIMEOUT, json={"name": CHAT_FOLDER})["id"]
+
+
+def _save_chat(config, model: str, question: str, answer: str) -> None:
+    """Records the exchange in OpenWebUI. A failure here must not cost us the prompt."""
+    try:
+        title = datetime.now().strftime("%Y-%m-%d %H:%M")
+        timestamp = int(time.time())
+        user_id, reply_id = str(uuid.uuid4()), str(uuid.uuid4())
+        user_message = {
+            "id": user_id, "parentId": None, "childrenIds": [reply_id], "role": "user",
+            "content": question, "models": [model], "timestamp": timestamp,
+        }
+        reply = {
+            "id": reply_id, "parentId": user_id, "childrenIds": [], "role": "assistant",
+            "content": answer, "model": model, "modelName": model, "done": True, "timestamp": timestamp,
+        }
+        _request(config, "POST", "/api/v1/chats/new", MODELS_TIMEOUT, json={
+            "folder_id": _folder_id(config),
+            "chat": {
+                "title": title,
+                "models": [model],
+                "messages": [user_message, reply],
+                "history": {"currentId": reply_id, "messages": {user_id: user_message, reply_id: reply}},
+            },
+        })
+    except Exception as e:
+        logger.warning("Could not save the prompt chat to OpenWebUI: %s", e)
+
+
 def _chat(config, model: str, full_content: str) -> str | None:
+    question = f"{SYSTEM_PROMPT}\n\n{full_content}"
     try:
         data = _request(config, "POST", "/api/chat/completions", LLM_TIMEOUT, json={
             "model": model,
             "stream": False,
-            "messages": [{"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{full_content}"}],
+            "messages": [{"role": "user", "content": question}],
         })
-        return extract_prompt(data["choices"][0]["message"]["content"]) or None
+        answer = data["choices"][0]["message"]["content"]
+        prompt = extract_prompt(answer) or None
     except Exception as e:
         logger.warning("OpenWebUI request failed with model %s: %s", model, e)
         return None
+    if prompt:
+        _save_chat(config, model, question, answer)
+    return prompt
 
 
 def _try_fallback_models(config, configured_models, failed_model, full_content):
