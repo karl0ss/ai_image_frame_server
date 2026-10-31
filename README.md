@@ -93,7 +93,7 @@ The application is configured via the `user_config.cfg` file.
 | `[comfyui:flux]` | `models`       | A comma-separated list of FLUX models.                                      | `flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf` |
 | `[comfyui:qwen]` | `models`       | A comma-separated list of Qwen models.                                      | `qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf` |
 | `[comfyui:zimage]` | `models`     | A comma-separated list of Z-Image models.                                   | `z_image_turbo-Q8_0.gguf` |
-| `[comfyui:me]` | `enabled`        | Add the "Me" option, which puts you in scenes using a photo of you.         | `False`               |
+| `[comfyui:me]` | `enabled`        | Add the "Me" option, which puts you in scenes using a photo of you. Needs the `FaceSwapFromPhoto` node in ComfyUI. | `False` |
 | `[comfyui:me]` | `photos`         | Comma-separated file names in ComfyUI's input folder.                       | `me.jpg`              |
 | `[comfyui:me]` | `nightly_chance` | Percentage of daily images that are one of you.                             | `25`                  |
 | `[openwebui]` | `base_url`         | The base URL for OpenWebUI.                                                 | `https://openwebui`   |

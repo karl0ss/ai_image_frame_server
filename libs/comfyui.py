@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import re
 import time
 import requests
 from typing import Optional
@@ -39,7 +40,12 @@ AVAILABLE_MODELS_CACHE_TTL = 300
 ME_MODEL = "Me"
 ME_CHECKPOINT = "Qwen-Image-Edit-2509-Q3_K_M.gguf"
 ME_LIKENESS = "Preserve the exact face, hair, beard and likeness of the man from the reference image."
+ME_FRAMING = "His face is clearly visible, turned towards the camera. Everything is in the same single shot, no panels."
+ME_PIXEL_STYLE = "Flat bright colours, clean thick outlines, simple shading."
+ME_RENDER_LONG_SIDE = 1536
+ME_PIXEL_SIZE = 3
 DEFAULT_ME_CHANCE = 25
+PIXEL_ART_RE = re.compile(r"(?:\b\d+-bit\s+)?\bpixel[\s-]?art\b(?:\s+style)?", re.IGNORECASE)
 
 
 def get_available_models() -> list:
@@ -89,9 +95,19 @@ def get_available_me_photos() -> list[str]:
     return [photo for photo in photos if photo in available]
 
 
+def _has_face_swap() -> bool:
+    try:
+        response = requests.get(_comfy_url("/object_info/FaceSwapFromPhoto"), timeout=COMFY_TIMEOUT)
+        response.raise_for_status()
+        return "FaceSwapFromPhoto" in response.json()
+    except (requests.RequestException, ValueError) as e:
+        logger.error("Could not check for the face swap node: %s", e)
+        return False
+
+
 def picks_me_tonight() -> bool:
     chance = load_config().getint("comfyui:me", "nightly_chance", fallback=DEFAULT_ME_CHANCE)
-    return random.random() * 100 < chance and bool(get_available_me_photos())
+    return random.random() * 100 < chance and bool(get_available_me_photos()) and _has_face_swap()
 
 
 def _comfy_url(path: str) -> str:
@@ -355,23 +371,46 @@ def _use_freellmapi_backend() -> bool:
     return get_bool(load_config(), "freellmapi", "image_backend", False)
 
 
-def _render_me(scene: str) -> None:
+def _me_prompt(scene: str, pixel_art: bool) -> str:
+    """Pixel art has no face the swap can find, so it is drawn as an illustration and pixelated at the end."""
+    text = PIXEL_ART_RE.sub("Bold retro video game illustration", scene).strip().rstrip(".")
+    style = f" {ME_PIXEL_STYLE}" if pixel_art else ""
+    return f"{text}.{style} {ME_FRAMING} {ME_LIKENESS}"
+
+
+def _me_size(width: int, height: int) -> tuple[int, int]:
+    """Renders above frame size, for more detail in a small face, keeping the frame's shape."""
+    scale = ME_RENDER_LONG_SIDE / max(width, height)
+    return round(width * scale / 16) * 16, round(height * scale / 16) * 16
+
+
+def _render_me(scene: str, topic: str = "") -> None:
     photos = get_available_me_photos()
     if not photos:
         raise RuntimeError("None of the Me photos are in ComfyUI's input folder.")
     photo = random.choice(photos)
     jobs.update_current(model=f"{ME_MODEL} ({photo})")
     jobs.log_step(f"Image model selected: {ME_CHECKPOINT} with photo {photo}")
+    pixel_art = bool(PIXEL_ART_RE.search(scene) or PIXEL_ART_RE.search(topic))
+    config = load_config()
+    width, height = int(config["comfyui"]["width"]), int(config["comfyui"]["height"])
+    render_width, render_height = _me_size(width, height)
+    node_params = {
+        "Your photo": {"image": photo},
+        "Render size": {"width": render_width, "height": render_height},
+    }
+    if pixel_art:
+        node_params["Pixel grid"] = {"width": width // ME_PIXEL_SIZE, "height": height // ME_PIXEL_SIZE}
     generate_image(
         file_name="image",
-        comfy_prompt=f"{scene.strip().rstrip('.')}. {ME_LIKENESS}",
-        workflow_path="./workflow_me.json",
+        comfy_prompt=_me_prompt(scene, pixel_art),
+        workflow_path="./workflow_me_pixel.json" if pixel_art else "./workflow_me.json",
         prompt_node="Positive",
         prompt_param="prompt",
         model_node="Load Checkpoint",
         model_param="unet_name",
         model=ME_CHECKPOINT,
-        node_params={"Your photo": {"image": photo}},
+        node_params=node_params,
     )
     logger.info("Me generation started with prompt: %s", scene)
 
@@ -407,7 +446,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
     with RemoteService():
         try:
             if model == ME_MODEL:
-                _render_me(prompt)
+                _render_me(prompt, topic)
                 return
 
             selected_workflow, model = select_model(model)

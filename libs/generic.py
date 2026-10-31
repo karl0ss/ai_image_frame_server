@@ -38,9 +38,9 @@ SYSTEM_PROMPT = (
 ME_PROMPT = (
     "Write one instruction for an image editing model that puts the man from the reference image in one new scene. "
     "Begin with 'Photorealistic photo of the man from the reference image'. If the theme is an art style, "
-    "begin with that style instead, such as '16-bit pixel art of the man from the reference image'. "
-    "Show him from the waist up. Say what he is doing, what he is with and where he is. "
-    "Never describe his face, hair, beard or age."
+    "begin with that style instead, such as 'Pixel art of the man from the reference image'. "
+    "Make him part of the scene, doing something active or funny, and vary the activity. "
+    "Say what he is doing, what he is with and where he is. Never describe his face, hair, beard or age."
 )
 
 IDEA_REQUEST = (

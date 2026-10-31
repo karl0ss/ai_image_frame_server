@@ -329,7 +329,10 @@ def test_create_image_renders_zimage_with_every_node_the_app_sets(monkeypatch, z
 def me_config(config, save_config, monkeypatch):
     config["comfyui:me"] = {"enabled": "True", "photos": "me.jpg, gone.jpg", "nightly_chance": "100"}
     save_config()
-    info = {"LoadImage": {"input": {"required": {"image": [["me.jpg", "other.png"], {}]}}}}
+    info = {
+        "LoadImage": {"input": {"required": {"image": [["me.jpg", "other.png"], {}]}}},
+        "FaceSwapFromPhoto": {},
+    }
     monkeypatch.setattr(comfyui.requests, "get", lambda url, timeout=None: Response(info))
     return config
 
@@ -382,7 +385,9 @@ def test_create_image_renders_me_with_the_photo_and_likeness(monkeypatch, me_con
     assert job["status"] == "done", job
     assert job["model"] == "Me (me.jpg)"
     nodes = {node["_meta"]["title"]: node["inputs"] for node in queued[0].values()}
-    assert nodes["Positive"]["prompt"] == f"Photo of him cooking. {comfyui.ME_LIKENESS}"
+    assert nodes["Positive"]["prompt"] == f"Photo of him cooking. {comfyui.ME_FRAMING} {comfyui.ME_LIKENESS}"
+    assert (nodes["Render size"]["width"], nodes["Render size"]["height"]) == (1024, 1536)
+    assert "Pixel grid" not in nodes
     assert nodes["Your photo"]["image"] == "me.jpg"
     assert nodes["Load Checkpoint"]["unet_name"] == comfyui.ME_CHECKPOINT
     assert (nodes["CR Aspect Ratio"]["width"], nodes["CR Aspect Ratio"]["height"]) == ("720", "1080")
@@ -431,3 +436,50 @@ def test_daily_task_is_unchanged_when_not_picked(monkeypatch, me_config):
     monkeypatch.setattr(server, "create_image", lambda *args: calls.append(args))
     server.scheduled_task()
     assert calls == [("base", ""), ("scene", "Random Image Model", "")]
+
+
+def test_daily_image_is_not_me_without_the_face_swap_node(me_config, monkeypatch):
+    info = {"LoadImage": {"input": {"required": {"image": [["me.jpg"], {}]}}}}
+    monkeypatch.setattr(comfyui.requests, "get", lambda url, timeout=None: Response(info))
+    monkeypatch.setattr(comfyui.random, "random", lambda: 0.1)
+    assert comfyui.picks_me_tonight() is False
+
+
+@pytest.mark.parametrize("scene", ["Pixel art of him cooking", "16-bit pixel art of him cooking", "Pixelart of him cooking"])
+def test_pixel_scene_is_drawn_then_pixelated(scene):
+    prompt = comfyui._me_prompt(scene, True)
+    assert prompt.startswith("Bold retro video game illustration of him cooking.")
+    assert "pixel" not in prompt.lower()
+    assert comfyui.ME_PIXEL_STYLE in prompt
+
+
+@pytest.mark.parametrize("scene, topic", [("Pixel art of him cooking", ""), ("Photo of him cooking", "pixelart")])
+def test_me_uses_the_pixel_workflow_for_pixel_scenes(monkeypatch, me_config, scene, topic):
+    queued = []
+    monkeypatch.setattr(comfyui, "unload_local_models", lambda: None)
+    monkeypatch.setattr(comfyui, "free_comfy_memory", lambda: None)
+    monkeypatch.setattr(comfyui, "_queue_prompt", lambda wf: queued.append(wf) or "id")
+    monkeypatch.setattr(comfyui, "_wait_for_render", lambda prompt_id: {"outputs": {"11": {"images": [{}]}}})
+    monkeypatch.setattr(comfyui, "_fetch_image", lambda image: png_bytes("red"))
+    monkeypatch.setattr(comfyui, "rename_image", lambda: None)
+
+    job = jobs.get_job(jobs.run(comfyui.create_image, scene, comfyui.ME_MODEL, topic))
+
+    assert job["status"] == "done", job
+    nodes = {node["_meta"]["title"]: node["inputs"] for node in queued[0].values() if "_meta" in node}
+    assert (nodes["Pixel grid"]["width"], nodes["Pixel grid"]["height"]) == (240, 360)
+    assert nodes["CR Aspect Ratio"]["upscale_method"] == "nearest-exact"
+
+
+@pytest.mark.parametrize("path", ["workflow_me.json", "workflow_me_pixel.json"])
+def test_me_workflows_swap_the_face_before_saving(path):
+    with open(path) as f:
+        workflow = json.load(f)
+    swap = next(node_id for node_id, node in workflow.items() if node["class_type"] == "FaceSwapFromPhoto")
+    node = next(node for node in workflow.values() if node["class_type"] == "SaveImage")
+    while "image" in node["inputs"] or "images" in node["inputs"]:
+        source = node["inputs"].get("images", node["inputs"].get("image"))[0]
+        if source == swap:
+            return
+        node = workflow[source]
+    pytest.fail("The face swap is not on the path to the saved image.")

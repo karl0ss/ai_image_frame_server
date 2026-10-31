@@ -68,12 +68,12 @@
   "7": {
     "class_type": "EmptySD3LatentImage",
     "inputs": {
-      "width": 720,
-      "height": 1080,
+      "width": 1024,
+      "height": 1536,
       "batch_size": 1
     },
     "_meta": {
-      "title": "CR Aspect Ratio"
+      "title": "Render size"
     }
   },
   "8": {
@@ -147,13 +147,46 @@
     "class_type": "SaveImage",
     "inputs": {
       "images": [
-        "10",
+        "13",
         0
       ],
       "filename_prefix": "image"
     },
     "_meta": {
       "title": "Save Image"
+    }
+  },
+  "12": {
+    "class_type": "FaceSwapFromPhoto",
+    "inputs": {
+      "image": [
+        "10",
+        0
+      ],
+      "photo": [
+        "5",
+        0
+      ],
+      "restore": true
+    },
+    "_meta": {
+      "title": "Face swap"
+    }
+  },
+  "13": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "image": [
+        "12",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 720,
+      "height": 1080,
+      "crop": "center"
+    },
+    "_meta": {
+      "title": "CR Aspect Ratio"
     }
   }
 }
