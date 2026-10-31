@@ -262,7 +262,7 @@ def test_field_defaults_are_ones_the_code_also_falls_back_to():
     """A default is shown but only saved when changed, so the code must behave the same without it."""
     defaulted = {field.name for group in settings.GROUPS for field in group.fields if field.default}
     assert defaulted == {
-        "frame:reload_interval", "frame:regen_time", "frame:port", "comfyui:output_dir",
+        "frame:reload_interval", "frame:regen_time", "frame:port", "comfyui:output_dir", "comfyui:me:nightly_chance",
         "remote:port", "remote:service", "remote:startup_poll_timeout",
     }
 

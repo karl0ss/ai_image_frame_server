@@ -83,6 +83,13 @@ GROUPS = (
         Field("comfyui:qwen", "models", "Qwen", LIST),
         Field("comfyui:zimage", "models", "Z-Image", LIST),
     )),
+    Group("Me", "Puts you in random scenes using a photo of you, with the Qwen Image Edit workflow.", (
+        Field("comfyui:me", "enabled", "Enabled", BOOL),
+        Field("comfyui:me", "photos", "Photos", LIST,
+              "File names in ComfyUI's input folder, one per line. One is picked at random."),
+        Field("comfyui:me", "nightly_chance", "Daily image chance (%)", INT,
+              "How often the daily image is one of you.", default="25", minimum=0, maximum=100),
+    ), enabled_field="comfyui:me:enabled"),
     Group("OpenWebUI", "Writes prompts. Used whenever it has models listed or every model is on.", (
         Field("openwebui", "base_url", "URL", URL),
         *_provider_fields("openwebui", Field("openwebui", "list_all_models", "Also use every model", BOOL)),

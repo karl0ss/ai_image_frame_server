@@ -6,9 +6,9 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask
 
 from libs import jobs
-from libs.comfyui import create_image
+from libs.comfyui import create_image, picks_me_tonight, ME_MODEL
 from libs.generic import (
-    create_prompt_with_random_model, get_bool, get_current_version, load_config, load_secret_key
+    create_prompt_with_random_model, get_bool, get_current_version, load_config, load_secret_key, ME_PROMPT
 )
 from routes import (
     auth_routes,
@@ -47,10 +47,13 @@ def create_app() -> Flask:
 
 def scheduled_task():
     logger.info("Executing scheduled task at %s", time.strftime('%Y-%m-%d %H:%M:%S'))
-    base_prompt = load_config()["comfyui"].get("prompt", "Generate a random detailed prompt for stable diffusion.")
-    prompt, topic = create_prompt_with_random_model(base_prompt, "")
+    if picks_me_tonight():
+        base_prompt, topic, model = ME_PROMPT, "random", ME_MODEL
+    else:
+        base_prompt = load_config()["comfyui"].get("prompt", "Generate a random detailed prompt for stable diffusion.")
+        topic, model = "", "Random Image Model"
+    prompt, topic = create_prompt_with_random_model(base_prompt, topic)
     if prompt:
-        model = "Random Image Model"
         jobs.run(create_image, prompt, model, topic, prompt=prompt, model=model)
     else:
         logger.warning("Failed to generate a prompt for the scheduled task.")

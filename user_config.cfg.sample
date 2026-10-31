@@ -27,6 +27,12 @@ only_flux = False
 models = qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf
 [comfyui:zimage]
 models = z_image_turbo-Q8_0.gguf
+[comfyui:me]
+# Puts you in random scenes. Photos are file names in ComfyUI's input folder.
+enabled = False
+photos = me.jpg
+# How often, as a percentage, the daily image is one of you.
+nightly_chance = 25
 [comfyui:flux]
 models = flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf
 

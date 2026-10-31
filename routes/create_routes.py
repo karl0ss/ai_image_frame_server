@@ -1,10 +1,11 @@
 import re
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from libs import jobs
-from libs.comfyui import create_image, get_queue_count
+from libs.comfyui import create_image, get_queue_count, ME_MODEL
 from libs.generic import (
     load_models_from_config, load_topics_from_config, load_prompt_model_groups,
-    load_prompt_models_from_config, create_prompt_with_random_model, try_prompt_service, load_config
+    load_prompt_models_from_config, load_me_photos, create_prompt_with_random_model, try_prompt_service,
+    load_config, ME_PROMPT
 )
 from routes.auth_routes import requires_create_auth
 
@@ -47,6 +48,7 @@ def _load_models_and_topics():
         "flux_models": flux_models,
         "qwen_models": qwen_models,
         "zimage_models": zimage_models,
+        "me_enabled": bool(load_me_photos()),
         "prompt_model_groups": load_prompt_model_groups(),
         "topics": topics,
         "queue_count": queue_count
@@ -57,13 +59,17 @@ def _generate(prompt: str | None, prompt_model: str, image_model: str, topic: st
     """Runs on a job worker because prompt generation can take minutes."""
     config = load_config()
     selected_topic = topic if topic and topic != "random" else ""
+    base_prompt = config["comfyui"]["prompt"]
+    if image_model == ME_MODEL:
+        base_prompt = ME_PROMPT
+        topic = topic or "random"
     if not prompt:
         jobs.update_current(status="prompt")
         if prompt_model and prompt_model != "Random Prompt Model":
             service, _, service_model = prompt_model.partition(":")
-            prompt = try_prompt_service(service, service_model, config["comfyui"]["prompt"], topic)
+            prompt = try_prompt_service(service, service_model, base_prompt, topic)
         else:
-            prompt, selected_topic = create_prompt_with_random_model(config["comfyui"]["prompt"], topic)
+            prompt, selected_topic = create_prompt_with_random_model(base_prompt, topic)
     create_image(prompt, image_model, selected_topic)
 
 

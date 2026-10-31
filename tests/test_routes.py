@@ -246,3 +246,32 @@ def test_every_page_shows_the_app_version(logged_in, config, path):
     set_image(config, "image.png", 1000)
     assert f">v{generic.get_current_version()}<" in logged_in.get(path).text
 
+
+
+def test_me_option_only_shows_when_enabled(logged_in, config, save_config):
+    assert 'value="Me"' not in logged_in.get("/create_image").text
+    config["comfyui:me"] = {"enabled": "True", "photos": "me.jpg"}
+    save_config()
+    assert 'value="Me"' in logged_in.get("/create_image").text
+
+
+def test_me_writes_its_scene_with_the_me_prompt_and_a_topic(logged_in, monkeypatch):
+    import routes.create_routes as create_routes
+
+    calls = []
+    monkeypatch.setattr(
+        create_routes, "create_prompt_with_random_model",
+        lambda base, topic: calls.append((base, topic)) or ("a scene", "cats"),
+    )
+    monkeypatch.setattr(create_routes, "create_image", lambda *args: calls.append(args))
+    create_routes._generate(None, "", "Me", "")
+    assert calls == [(create_routes.ME_PROMPT, "random"), ("a scene", "Me", "cats")]
+
+
+def test_typed_scene_for_me_skips_the_prompt_model(logged_in, monkeypatch):
+    import routes.create_routes as create_routes
+
+    calls = []
+    monkeypatch.setattr(create_routes, "create_image", lambda *args: calls.append(args))
+    create_routes._generate("me as a chef", "", "Me", "")
+    assert calls == [("me as a chef", "Me", "")]

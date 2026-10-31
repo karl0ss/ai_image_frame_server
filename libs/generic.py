@@ -35,6 +35,13 @@ SYSTEM_PROMPT = (
     "Keep the prompt concise, no extra commentary or formatting."
 )
 
+ME_PROMPT = (
+    "Write one instruction for an image editing model that puts the man from the reference image in a new scene. "
+    "Start with the art style, usually 'Photorealistic photo of the man from the reference image', "
+    "and show him from the waist up. Say what he is doing, what he is with and where he is. "
+    "Never describe his face, hair, beard or age."
+)
+
 PROMPT_SERVICES = {
     "openwebui": ("libs.openwebui", "create_prompt_on_openwebui"),
     "openrouter": ("libs.openrouter", "create_prompt_on_openrouter"),
@@ -332,7 +339,7 @@ def get_details_from_png(path):
                     continue
                 class_type = node.get("class_type", "")
                 inputs = node.get("inputs", {})
-                text_val = inputs.get("text", "")
+                text_val = inputs.get("text", inputs.get("prompt", ""))
                 if isinstance(text_val, list):
                     continue
                 if class_type in ("ttN text",) or "text" in class_type.lower():
@@ -351,7 +358,8 @@ def get_details_from_png(path):
             if not prompt:
                 for key_node in data:
                     if isinstance(data[key_node], dict):
-                        text_val = data[key_node].get("inputs", {}).get("text", "")
+                        inputs = data[key_node].get("inputs", {})
+                        text_val = inputs.get("text", inputs.get("prompt", ""))
                         if isinstance(text_val, str) and text_val:
                             prompt = text_val
                             break
@@ -407,6 +415,13 @@ def load_models_from_config():
         if get_bool(config, "comfyui", "zimage", False) else []
     )
     return sdxl_models, flux_models, qwen_models, zimage_models
+
+
+def load_me_photos() -> list[str]:
+    config = load_config()
+    if not get_bool(config, "comfyui:me", "enabled", False):
+        return []
+    return _split_csv(config.get("comfyui:me", "photos", fallback=""))
 
 
 def load_topics_from_config():

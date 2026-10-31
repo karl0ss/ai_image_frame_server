@@ -13,7 +13,7 @@ from tenacity import (
     retry_if_not_exception_type,
 )
 from libs import jobs
-from libs.generic import rename_image, load_config, save_prompt, get_bool
+from libs.generic import rename_image, load_config, load_me_photos, save_prompt, get_bool, ME_PROMPT
 from libs.local_llm import unload_local_models
 from libs.create_thumbnail import generate_thumbnail
 from libs.remote import RemoteService
@@ -35,6 +35,11 @@ class RenderTimeout(Exception):
 AVAILABLE_MODELS_CACHE = None
 AVAILABLE_MODELS_CACHE_TIME = 0
 AVAILABLE_MODELS_CACHE_TTL = 300
+
+ME_MODEL = "Me"
+ME_CHECKPOINT = "Qwen-Image-Edit-2509-Q3_K_M.gguf"
+ME_LIKENESS = "Preserve the exact face, hair, beard and likeness of the man from the reference image."
+DEFAULT_ME_CHANCE = 25
 
 
 def get_available_models() -> list:
@@ -67,6 +72,26 @@ def get_available_models() -> list:
         if AVAILABLE_MODELS_CACHE is not None:
             return AVAILABLE_MODELS_CACHE
         return []
+
+
+def get_available_me_photos() -> list[str]:
+    """The configured Me photos that are really in ComfyUI's input folder."""
+    photos = load_me_photos()
+    if not photos:
+        return []
+    try:
+        response = requests.get(_comfy_url("/object_info/LoadImage"), timeout=COMFY_TIMEOUT)
+        response.raise_for_status()
+        available = response.json()["LoadImage"]["input"]["required"]["image"][0]
+    except (requests.RequestException, KeyError, IndexError, ValueError) as e:
+        logger.error("Could not list ComfyUI's input photos: %s", e)
+        return []
+    return [photo for photo in photos if photo in available]
+
+
+def picks_me_tonight() -> bool:
+    chance = load_config().getint("comfyui:me", "nightly_chance", fallback=DEFAULT_ME_CHANCE)
+    return random.random() * 100 < chance and bool(get_available_me_photos())
 
 
 def _comfy_url(path: str) -> str:
@@ -202,6 +227,7 @@ def generate_image(
     comfy_prompt: str,
     workflow_path: str = "./workflow_sdxl.json",
     prompt_node: str = "Positive",
+    prompt_param: str = "text",
     seed_node: str = "KSampler",
     seed_param: str = "seed",
     save_node: str = "Save Image",
@@ -209,13 +235,14 @@ def generate_image(
     model_node: Optional[str] = "Load Checkpoint",
     model_param: Optional[str] = "ckpt_name",
     model: Optional[str] = "None",
+    node_params: Optional[dict[str, dict]] = None,
 ) -> None:
     config = load_config()
     try:
         wf = ComfyWorkflowWrapper(workflow_path)
 
         wf.set_node_param(seed_node, seed_param, random.getrandbits(32))
-        wf.set_node_param(prompt_node, "text", comfy_prompt)
+        wf.set_node_param(prompt_node, prompt_param, comfy_prompt)
         wf.set_node_param(save_node, save_param, file_name)
         wf.set_node_param(
             (
@@ -237,6 +264,9 @@ def generate_image(
         )
 
         wf.set_node_param(model_node, model_param, model)
+        for node, params in (node_params or {}).items():
+            for param, value in params.items():
+                wf.set_node_param(node, param, value)
 
         # Only one render at a time writes the shared image.png. It is archived
         # after the render, not before, so the frame keeps showing the current
@@ -325,11 +355,34 @@ def _use_freellmapi_backend() -> bool:
     return get_bool(load_config(), "freellmapi", "image_backend", False)
 
 
+def _render_me(scene: str) -> None:
+    photos = get_available_me_photos()
+    if not photos:
+        raise RuntimeError("None of the Me photos are in ComfyUI's input folder.")
+    photo = random.choice(photos)
+    jobs.update_current(model=f"{ME_MODEL} ({photo})")
+    jobs.log_step(f"Image model selected: {ME_CHECKPOINT} with photo {photo}")
+    generate_image(
+        file_name="image",
+        comfy_prompt=f"{scene.strip().rstrip('.')}. {ME_LIKENESS}",
+        workflow_path="./workflow_me.json",
+        prompt_node="Positive",
+        prompt_param="prompt",
+        model_node="Load Checkpoint",
+        model_param="unet_name",
+        model=ME_CHECKPOINT,
+        node_params={"Your photo": {"image": photo}},
+    )
+    logger.info("Me generation started with prompt: %s", scene)
+
+
 def create_image(prompt: str | None = None, model: str = "Random Image Model", topic: str = "") -> None:
     if prompt is None:
         from libs.generic import create_prompt_with_random_model
         config = load_config()
         base_prompt = config["comfyui"].get("prompt", "Generate a random detailed prompt for stable diffusion.")
+        if model == ME_MODEL:
+            base_prompt = ME_PROMPT
         prompt, _ = create_prompt_with_random_model(base_prompt)
 
     if not prompt:
@@ -338,7 +391,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
     jobs.update_current(prompt=prompt)
     save_prompt(prompt, topic)
 
-    if _use_freellmapi_backend():
+    if model != ME_MODEL and _use_freellmapi_backend():
         from libs.freellmapi import generate_image_on_freellmapi
 
         # freellmapi only accepts "auto" (router picks the best model), so
@@ -353,6 +406,10 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
     # jobs keep it alive until the last one finishes.
     with RemoteService():
         try:
+            if model == ME_MODEL:
+                _render_me(prompt)
+                return
+
             selected_workflow, model = select_model(model)
             jobs.update_current(model=model)
             jobs.log_step(f"Image model selected: {model} ({selected_workflow})")
@@ -444,11 +501,12 @@ def get_queue_details() -> list:
 
                 for node in prompt_data.values():
                     class_type = node.get("class_type", "")
-                    if "CLIPTextEncode" in class_type and "text" in node["inputs"]:
+                    text = node["inputs"].get("text", node["inputs"].get("prompt"))
+                    if "TextEncode" in class_type and text is not None:
                         meta = node.get('_meta', {})
                         title = meta.get('title', '').lower()
                         if 'positive' in title or 'prompt' in title:
-                            prompt = node["inputs"]["text"]
+                            prompt = text
                             break
 
                 model_display = model.split(".")[0] if model != "Unknown" else model

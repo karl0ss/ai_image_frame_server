@@ -72,3 +72,20 @@ def test_selected_image_is_stored_on_the_output_volume(config):
     generic.set_selected_image(None)
     assert not os.path.exists(path)
     assert generic.get_selected_image() is None
+
+
+def test_details_read_the_prompt_from_a_me_render(tmp_path):
+    from PIL import PngImagePlugin
+
+    with open("workflow_me.json") as f:
+        workflow = json.load(f)
+    workflow["8"]["inputs"]["prompt"] = "a scene"
+    info = PngImagePlugin.PngInfo()
+    info.add_text("prompt", json.dumps(workflow))
+    path = tmp_path / "me.png"
+    Image.new("RGB", (8, 8)).save(path, pnginfo=info)
+
+    details = generic.get_details_from_png(str(path))
+
+    assert details["p"] == "a scene"
+    assert details["m"].startswith("Qwen-Image-Edit-2509")

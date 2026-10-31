@@ -323,3 +323,111 @@ def test_create_image_renders_zimage_with_every_node_the_app_sets(monkeypatch, z
     assert nodes["Positive"]["text"] == "a cat"
     assert nodes["Load Checkpoint"]["unet_name"] == "z_image_turbo-Q8_0.gguf"
     assert (nodes["CR Aspect Ratio"]["width"], nodes["CR Aspect Ratio"]["height"]) == ("720", "1080")
+
+
+@pytest.fixture
+def me_config(config, save_config, monkeypatch):
+    config["comfyui:me"] = {"enabled": "True", "photos": "me.jpg, gone.jpg", "nightly_chance": "100"}
+    save_config()
+    info = {"LoadImage": {"input": {"required": {"image": [["me.jpg", "other.png"], {}]}}}}
+    monkeypatch.setattr(comfyui.requests, "get", lambda url, timeout=None: Response(info))
+    return config
+
+
+def test_me_photos_are_only_those_comfyui_has(me_config):
+    assert comfyui.get_available_me_photos() == ["me.jpg"]
+
+
+def test_me_photos_are_empty_when_disabled(me_config, save_config):
+    me_config["comfyui:me"]["enabled"] = "False"
+    save_config()
+    assert comfyui.get_available_me_photos() == []
+
+
+def test_me_photos_are_empty_when_comfyui_is_down(me_config, monkeypatch):
+    def down(url, timeout=None):
+        raise requests.ConnectionError("down")
+
+    monkeypatch.setattr(comfyui.requests, "get", down)
+    assert comfyui.get_available_me_photos() == []
+
+
+def test_daily_image_is_me_only_when_the_chance_hits(me_config, save_config, monkeypatch):
+    monkeypatch.setattr(comfyui.random, "random", lambda: 0.5)
+    assert comfyui.picks_me_tonight() is True
+    me_config["comfyui:me"]["nightly_chance"] = "25"
+    save_config()
+    assert comfyui.picks_me_tonight() is False
+
+
+def test_daily_image_is_not_me_without_a_usable_photo(me_config, save_config):
+    me_config["comfyui:me"]["photos"] = "gone.jpg"
+    save_config()
+    assert comfyui.picks_me_tonight() is False
+
+
+def test_create_image_renders_me_with_the_photo_and_likeness(monkeypatch, me_config, save_config):
+    me_config["freellmapi"]["image_backend"] = "True"
+    save_config()
+    queued = []
+    monkeypatch.setattr(comfyui, "unload_local_models", lambda: None)
+    monkeypatch.setattr(comfyui, "free_comfy_memory", lambda: None)
+    monkeypatch.setattr(comfyui, "_queue_prompt", lambda wf: queued.append(wf) or "id")
+    monkeypatch.setattr(comfyui, "_wait_for_render", lambda prompt_id: {"outputs": {"11": {"images": [{}]}}})
+    monkeypatch.setattr(comfyui, "_fetch_image", lambda image: png_bytes("red"))
+    monkeypatch.setattr(comfyui, "rename_image", lambda: None)
+
+    job = jobs.get_job(jobs.run(comfyui.create_image, "Photo of him cooking.", comfyui.ME_MODEL))
+
+    assert job["status"] == "done", job
+    assert job["model"] == "Me (me.jpg)"
+    nodes = {node["_meta"]["title"]: node["inputs"] for node in queued[0].values()}
+    assert nodes["Positive"]["prompt"] == f"Photo of him cooking. {comfyui.ME_LIKENESS}"
+    assert nodes["Your photo"]["image"] == "me.jpg"
+    assert nodes["Load Checkpoint"]["unet_name"] == comfyui.ME_CHECKPOINT
+    assert (nodes["CR Aspect Ratio"]["width"], nodes["CR Aspect Ratio"]["height"]) == ("720", "1080")
+
+
+def test_me_fails_clearly_without_a_photo(monkeypatch, me_config, save_config):
+    me_config["comfyui:me"]["photos"] = "gone.jpg"
+    save_config()
+    monkeypatch.setattr(comfyui, "free_comfy_memory", lambda: None)
+
+    job = jobs.get_job(jobs.run(comfyui.create_image, "a scene", comfyui.ME_MODEL))
+
+    assert job["status"] == "failed"
+    assert "Me photos" in job["error"]
+
+
+def test_queue_details_show_a_me_prompt(monkeypatch):
+    with open("workflow_me.json") as f:
+        workflow = json.load(f)
+    workflow["8"]["inputs"]["prompt"] = "a scene"
+    monkeypatch.setattr(comfyui, "_get_queue", lambda: {"queue_running": [[0, "id", workflow]]})
+    assert comfyui.get_queue_details()[0]["prompt"] == "a scene"
+
+
+def test_daily_task_uses_me_prompt_and_any_topic_when_picked(monkeypatch, me_config):
+    import ai_frame_image_server as server
+
+    calls = []
+    monkeypatch.setattr(server, "picks_me_tonight", lambda: True)
+    monkeypatch.setattr(
+        server, "create_prompt_with_random_model", lambda base, topic: calls.append((base, topic)) or ("scene", "cats")
+    )
+    monkeypatch.setattr(server, "create_image", lambda *args: calls.append(args))
+    server.scheduled_task()
+    assert calls == [(server.ME_PROMPT, "random"), ("scene", comfyui.ME_MODEL, "cats")]
+
+
+def test_daily_task_is_unchanged_when_not_picked(monkeypatch, me_config):
+    import ai_frame_image_server as server
+
+    calls = []
+    monkeypatch.setattr(server, "picks_me_tonight", lambda: False)
+    monkeypatch.setattr(
+        server, "create_prompt_with_random_model", lambda base, topic: calls.append((base, topic)) or ("scene", "")
+    )
+    monkeypatch.setattr(server, "create_image", lambda *args: calls.append(args))
+    server.scheduled_task()
+    assert calls == [("base", ""), ("scene", "Random Image Model", "")]

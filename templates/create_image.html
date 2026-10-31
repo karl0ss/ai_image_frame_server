@@ -207,6 +207,9 @@
         <label for="model-select">Image Model:</label>
         <select id="model-select">
             <option value="" selected>Random Image Model</option>
+            {% if me_enabled %}
+            <option value="Me">Me</option>
+            {% endif %}
             {% if flux_models %}
             <optgroup label="FLUX">
                 {% for m in flux_models %}
