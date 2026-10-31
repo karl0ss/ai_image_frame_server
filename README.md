@@ -122,7 +122,6 @@ The application is configured via the `user_config.cfg` file.
 *   openai
 *   websockets
 *   bump-my-version
-*   openwebui-chat-client
 *   And others, see `requirements.txt`.
 
 ## Contributing

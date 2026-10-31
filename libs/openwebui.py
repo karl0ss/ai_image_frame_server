@@ -1,23 +1,31 @@
 import logging
 import random
 import time
-from libs.generic import load_config, build_request_content, extract_prompt, get_bool
-from openwebui_chat_client import OpenWebUIClient
-from datetime import datetime
+
+import requests
+
+from libs.generic import load_config, build_request_content, extract_prompt, SYSTEM_PROMPT, get_bool
 
 logger = logging.getLogger(__name__)
+
+LLM_TIMEOUT = 300
+MODELS_TIMEOUT = 15
 
 _ALL_MODELS_CACHE = None
 _ALL_MODELS_CACHE_TIME = 0.0
 _ALL_MODELS_CACHE_TTL = 300.0
 
 
-def _get_client(config, model: str) -> OpenWebUIClient:
-    return OpenWebUIClient(
-        base_url=config["openwebui"]["base_url"].rstrip("/"),
-        token=config["openwebui"]["api_key"],
-        default_model_id=model
+def _request(config, method: str, path: str, timeout: int, **kwargs) -> dict:
+    response = requests.request(
+        method,
+        config["openwebui"]["base_url"].rstrip("/") + path,
+        headers={"Authorization": f'Bearer {config["openwebui"]["api_key"]}'},
+        timeout=timeout,
+        **kwargs,
     )
+    response.raise_for_status()
+    return response.json()
 
 
 def _can_chat(model_id: str) -> bool:
@@ -34,9 +42,7 @@ def get_all_models():
     if not get_bool(config, "openwebui", "list_all_models", False):
         return []
     try:
-        models = _get_client(config, "").list_models()
-        if models is None:
-            raise RuntimeError("no model list returned")
+        models = _request(config, "GET", "/api/models", MODELS_TIMEOUT)["data"]
         result = sorted([m["id"] for m in models if _can_chat(m["id"])], key=str.lower)
         _ALL_MODELS_CACHE = result
         _ALL_MODELS_CACHE_TIME = time.time()
@@ -57,20 +63,14 @@ def get_usable_models(config) -> list[str]:
 
 def _chat(config, model: str, full_content: str) -> str | None:
     try:
-        result = _get_client(config, model).chat(
-            question=full_content,
-            chat_title=datetime.now().strftime("%Y-%m-%d %H:%M"),
-            folder_name="ai-frame-image-server"
-        )
-
-        if result:
-            prompt = extract_prompt(result["response"])
-            return prompt
-        else:
-            logger.warning("OpenWebUI request failed with model: %s", model)
-            return None
+        data = _request(config, "POST", "/api/chat/completions", LLM_TIMEOUT, json={
+            "model": model,
+            "stream": False,
+            "messages": [{"role": "user", "content": f"{SYSTEM_PROMPT}\n\n{full_content}"}],
+        })
+        return extract_prompt(data["choices"][0]["message"]["content"]) or None
     except Exception as e:
-        logger.error("Error in OpenWebUI request with model %s: %s", model, e)
+        logger.warning("OpenWebUI request failed with model %s: %s", model, e)
         return None
 
 

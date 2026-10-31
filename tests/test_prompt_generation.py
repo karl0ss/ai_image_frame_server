@@ -110,71 +110,70 @@ def test_no_models_configured(monkeypatch, calls):
     assert generic.create_prompt_with_random_model("base", "cats") == (None, "")
 
 
-def test_provider_does_not_add_instructions_twice(monkeypatch, config):
+@pytest.fixture
+def fake_openwebui(monkeypatch, config):
+    """Stands in for the OpenWebUI API; models in `failing` return HTTP 400."""
+    import requests
+
     import libs.openwebui as openwebui
 
-    questions = []
+    class Fake:
+        listed = [{"id": "live-model"}, {"id": "nomic-embed-v1.5"}, {"id": "arena-model"}]
+        failing = set()
+        asked = []
+        bodies = []
+        urls = []
 
-    class FakeClient:
-        def __init__(self, **kwargs):
-            pass
+    class Response:
+        def __init__(self, payload, ok=True):
+            self.payload, self.ok = payload, ok
 
-        def chat(self, question, **kwargs):
-            questions.append(question)
-            return {"response": '"a fine prompt"'}
+        def raise_for_status(self):
+            if not self.ok:
+                raise requests.HTTPError("400 Client Error")
 
-    monkeypatch.setattr(openwebui, "OpenWebUIClient", FakeClient)
+        def json(self):
+            return self.payload
+
+    def request(method, url, headers, timeout, json=None):
+        if method == "GET":
+            return Response({"data": Fake.listed})
+        Fake.urls.append(url)
+        Fake.bodies.append(json)
+        Fake.asked.append(json["model"])
+        if json["model"] in Fake.failing:
+            return Response({}, ok=False)
+        return Response({"choices": [{"message": {"content": '"a fine prompt"'}}]})
+
+    Fake.failing, Fake.asked, Fake.bodies, Fake.urls = set(), [], [], []
+    monkeypatch.setattr(openwebui.requests, "request", request)
+    monkeypatch.setattr(openwebui, "_ALL_MODELS_CACHE", None)
+    return Fake
+
+
+def test_provider_does_not_add_instructions_twice(monkeypatch, fake_openwebui):
     monkeypatch.setattr(generic, "load_prompt_models_from_config", lambda: [("openwebui", "web-model")])
 
     generic.create_prompt_with_random_model("base", "cats")
 
-    assert questions[0].count("Can you generate me") == 1
+    assert fake_openwebui.bodies[0]["messages"][0]["content"].count("Can you generate me") == 1
 
 
-def test_openwebui_url_has_no_trailing_slash(monkeypatch, config, save_config):
+def test_openwebui_url_has_no_trailing_slash(fake_openwebui, config, save_config):
     import libs.openwebui as openwebui
-
-    seen = {}
-
-    class FakeClient:
-        def __init__(self, base_url, **kwargs):
-            seen["url"] = base_url
-
-        def chat(self, **kwargs):
-            return {"response": '"a fine prompt"'}
 
     config["openwebui"]["base_url"] = "http://openwebui:3000/"
     save_config()
-    monkeypatch.setattr(openwebui, "OpenWebUIClient", FakeClient)
     openwebui.create_prompt_on_openwebui("base", None, "web-model")
-    assert seen["url"] == "http://openwebui:3000"
+    assert fake_openwebui.urls == ["http://openwebui:3000/api/chat/completions"]
 
 
-@pytest.fixture
-def fake_openwebui(monkeypatch, config):
-    """Stands in for the OpenWebUI client; models in `failing` return no response."""
+def test_openwebui_request_sends_no_chat_id(fake_openwebui):
     import libs.openwebui as openwebui
 
-    class FakeClient:
-        listed = [{"id": "live-model"}, {"id": "nomic-embed-v1.5"}, {"id": "arena-model"}]
-        failing = set()
-        asked = []
-
-        def __init__(self, default_model_id, **kwargs):
-            self.model = default_model_id
-
-        def list_models(self):
-            return FakeClient.listed
-
-        def chat(self, **kwargs):
-            FakeClient.asked.append(self.model)
-            return None if self.model in FakeClient.failing else {"response": '"a fine prompt"'}
-
-    FakeClient.failing = set()
-    FakeClient.asked = []
-    monkeypatch.setattr(openwebui, "OpenWebUIClient", FakeClient)
-    monkeypatch.setattr(openwebui, "_ALL_MODELS_CACHE", None)
-    return FakeClient
+    openwebui.create_prompt_on_openwebui("base", None, "web-model")
+    assert fake_openwebui.bodies[0]["model"] == "web-model"
+    assert "chat_id" not in fake_openwebui.bodies[0]
 
 
 def test_openwebui_lists_only_chat_models_when_flag_is_on(fake_openwebui, config, save_config):
