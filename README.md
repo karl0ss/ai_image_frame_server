@@ -5,7 +5,7 @@ This project is a Flask-based web server designed to generate and display images
 ## Features
 
 *   **Web Interface:** A simple web interface to view generated images, manage favourites, and monitor job queues.
-*   **Image Generation:** Integrates with ComfyUI to generate images using SDXL, FLUX, and Qwen models based on given prompts.
+*   **Image Generation:** Integrates with ComfyUI to generate images using SDXL, FLUX, Qwen, and Z-Image models based on given prompts.
 *   **Prompt Generation:** Automatic prompt generation using OpenWebUI or OpenRouter APIs with topic-based theming.
 *   **Scheduled Generation:** Automatically generates new images at a configurable time.
 *   **Favourites System:** Mark and manage favourite images.
@@ -89,8 +89,10 @@ The application is configured via the `user_config.cfg` file.
 | `[comfyui]` | `secondary_topic`    | A secondary topic for prompt generation.                                    |                       |
 | `[comfyui]` | `flux`               | Enable FLUX models (`True`/`False`).                                        | `False`               |
 | `[comfyui]` | `qwen`               | Enable Qwen models (`True`/`False`).                                        | `False`               |
+| `[comfyui]` | `zimage`             | Enable Z-Image models (`True`/`False`).                                     | `False`               |
 | `[comfyui:flux]` | `models`       | A comma-separated list of FLUX models.                                      | `flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf` |
 | `[comfyui:qwen]` | `models`       | A comma-separated list of Qwen models.                                      | `qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf` |
+| `[comfyui:zimage]` | `models`     | A comma-separated list of Z-Image models.                                   | `z_image_turbo-Q8_0.gguf` |
 | `[openwebui]` | `base_url`         | The base URL for OpenWebUI.                                                 | `https://openwebui`   |
 | `[openwebui]` | `api_key`          | The API key for OpenWebUI.                                                  | `sk-`                 |
 | `[openwebui]` | `models`           | A comma-separated list of models for OpenWebUI.                             | `llama3:latest,cogito:14b,gemma3:12b` |

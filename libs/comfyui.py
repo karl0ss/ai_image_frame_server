@@ -274,6 +274,7 @@ def select_model(model: str) -> tuple[str, str]:
     use_flux = get_bool(config, "comfyui", "flux", False)
     only_flux = get_bool(config, "comfyui", "only_flux", False)
     use_qwen = get_bool(config, "comfyui", "qwen", False)
+    use_zimage = get_bool(config, "comfyui", "zimage", False)
 
     if model == "Random Image Model":
         available_workflows = []
@@ -283,6 +284,8 @@ def select_model(model: str) -> tuple[str, str]:
             available_workflows.append("FLUX")
         if use_qwen:
             available_workflows.append("Qwen")
+        if use_zimage:
+            available_workflows.append("ZImage")
 
         if not available_workflows:
             available_workflows.append("SDXL")
@@ -292,6 +295,8 @@ def select_model(model: str) -> tuple[str, str]:
         selected_workflow = "FLUX"
     elif "qwen" in model.lower():
         selected_workflow = "Qwen"
+    elif "z_image" in model.lower() or "z-image" in model.lower():
+        selected_workflow = "ZImage"
     else:
         selected_workflow = "SDXL"
 
@@ -300,6 +305,8 @@ def select_model(model: str) -> tuple[str, str]:
             valid_models = [m.strip() for m in config["comfyui:flux"]["models"].split(",") if m.strip()]
         elif selected_workflow == "Qwen":
             valid_models = [m.strip() for m in config["comfyui:qwen"]["models"].split(",") if m.strip()]
+        elif selected_workflow == "ZImage":
+            valid_models = [m.strip() for m in config["comfyui:zimage"]["models"].split(",") if m.strip()]
         else:
             available_model_list = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
             valid_models = list(set(get_available_models()) & set(available_model_list))
@@ -375,6 +382,20 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
                     save_param="filename_prefix",
                     model_node="Load Checkpoint",
                     model_param="ckpt_name",
+                    model=model
+                )
+            elif selected_workflow == "ZImage":
+                generate_image(
+                    file_name="image",
+                    comfy_prompt=prompt,
+                    workflow_path="./workflow_zimage.json",
+                    prompt_node="Positive",
+                    seed_node="KSampler",
+                    seed_param="seed",
+                    save_node="Save Image",
+                    save_param="filename_prefix",
+                    model_node="Load Checkpoint",
+                    model_param="unet_name",
                     model=model
                 )
             else:

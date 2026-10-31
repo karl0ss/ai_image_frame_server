@@ -402,7 +402,11 @@ def load_models_from_config():
         _config_models(config, "comfyui:qwen", requires_enabled=False)
         if get_bool(config, "comfyui", "qwen", False) else []
     )
-    return sdxl_models, flux_models, qwen_models
+    zimage_models = (
+        _config_models(config, "comfyui:zimage", requires_enabled=False)
+        if get_bool(config, "comfyui", "zimage", False) else []
+    )
+    return sdxl_models, flux_models, qwen_models, zimage_models
 
 
 def load_topics_from_config():

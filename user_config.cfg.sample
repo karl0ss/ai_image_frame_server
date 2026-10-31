@@ -20,10 +20,13 @@ secondary_topic =
 
 flux = False
 qwen = False
+zimage = False
 only_flux = False
 
 [comfyui:qwen]
 models = qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf
+[comfyui:zimage]
+models = z_image_turbo-Q8_0.gguf
 [comfyui:flux]
 models = flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf
 

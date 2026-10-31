@@ -74,12 +74,14 @@ GROUPS = (
         Field("comfyui", "secondary_topic", "Secondary topic", TEXT, "Added to every prompt when set."),
         Field("comfyui", "flux", "Use Flux models", BOOL),
         Field("comfyui", "qwen", "Use Qwen models", BOOL),
+        Field("comfyui", "zimage", "Use Z-Image models", BOOL),
         Field("comfyui", "only_flux", "Never pick SDXL at random", BOOL),
     )),
     Group("Image models", "File names as ComfyUI knows them, one per line.", (
         Field("comfyui", "models", "SDXL", LIST),
         Field("comfyui:flux", "models", "Flux", LIST),
         Field("comfyui:qwen", "models", "Qwen", LIST),
+        Field("comfyui:zimage", "models", "Z-Image", LIST),
     )),
     Group("OpenWebUI", "Writes prompts. Used whenever it has models listed or every model is on.", (
         Field("openwebui", "base_url", "URL", URL),

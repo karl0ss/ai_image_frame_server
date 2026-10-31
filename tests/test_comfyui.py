@@ -273,3 +273,53 @@ def test_memory_is_freed_after_every_outcome(monkeypatch, config, failure):
     monkeypatch.setattr(comfyui, "select_model", lambda model: ("SDXL", "a.safetensors"))
     jobs.run(comfyui.create_image, "a cat")
     assert freed == [True]
+
+
+@pytest.fixture
+def zimage_config(config, save_config):
+    config["comfyui"]["zimage"] = "True"
+    config["comfyui"]["only_flux"] = "True"
+    config["comfyui:zimage"] = {"models": "z_image_turbo-Q8_0.gguf"}
+    save_config()
+
+
+def test_random_selection_can_pick_zimage(zimage_config):
+    assert comfyui.select_model("Random Image Model") == ("ZImage", "z_image_turbo-Q8_0.gguf")
+
+
+@pytest.mark.parametrize("model", ["z_image_turbo-Q8_0.gguf", "Z-Image-Turbo.gguf"])
+def test_named_zimage_model_uses_the_zimage_workflow(config, model):
+    assert comfyui.select_model(model) == ("ZImage", model)
+
+
+def test_zimage_is_skipped_at_random_when_disabled(config):
+    assert comfyui.select_model("Random Image Model")[0] == "SDXL"
+
+
+def test_zimage_models_are_listed_only_when_enabled(config, save_config):
+    from libs.generic import load_models_from_config
+
+    config["comfyui:zimage"] = {"models": "z.gguf"}
+    save_config()
+    assert load_models_from_config()[3] == []
+    config["comfyui"]["zimage"] = "True"
+    save_config()
+    assert load_models_from_config()[3] == ["z.gguf"]
+
+
+def test_create_image_renders_zimage_with_every_node_the_app_sets(monkeypatch, zimage_config):
+    queued = []
+    monkeypatch.setattr(comfyui, "unload_local_models", lambda: None)
+    monkeypatch.setattr(comfyui, "free_comfy_memory", lambda: None)
+    monkeypatch.setattr(comfyui, "_queue_prompt", lambda wf: queued.append(wf) or "id")
+    monkeypatch.setattr(comfyui, "_wait_for_render", lambda prompt_id: {"outputs": {"10": {"images": [{}]}}})
+    monkeypatch.setattr(comfyui, "_fetch_image", lambda image: png_bytes("red"))
+    monkeypatch.setattr(comfyui, "rename_image", lambda: None)
+
+    job = jobs.get_job(jobs.run(comfyui.create_image, "a cat", "z_image_turbo-Q8_0.gguf"))
+
+    assert job["status"] == "done", job
+    nodes = {node["_meta"]["title"]: node["inputs"] for node in queued[0].values()}
+    assert nodes["Positive"]["text"] == "a cat"
+    assert nodes["Load Checkpoint"]["unet_name"] == "z_image_turbo-Q8_0.gguf"
+    assert (nodes["CR Aspect Ratio"]["width"], nodes["CR Aspect Ratio"]["height"]) == ("720", "1080")

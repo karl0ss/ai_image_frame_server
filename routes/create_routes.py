@@ -39,13 +39,14 @@ def _validate_topic(topic: str) -> str:
 
 
 def _load_models_and_topics():
-    sdxl_models, flux_models, qwen_models = load_models_from_config()
+    sdxl_models, flux_models, qwen_models, zimage_models = load_models_from_config()
     queue_count = get_queue_count()
     topics = load_topics_from_config()
     return {
         "sdxl_models": sdxl_models,
         "flux_models": flux_models,
         "qwen_models": qwen_models,
+        "zimage_models": zimage_models,
         "prompt_model_groups": load_prompt_model_groups(),
         "topics": topics,
         "queue_count": queue_count
