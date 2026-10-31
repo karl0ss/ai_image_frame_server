@@ -38,7 +38,7 @@
     "inputs": {
       "filename_prefix": "ComfyUI",
       "images": [
-        "42",
+        "8",
         0
       ]
     },
@@ -166,54 +166,31 @@
   },
   "38": {
     "inputs": {
-      "unet_name": "flux1-dev-Q4_0.gguf",
-      "device": "cuda:0",
-      "virtual_vram_gb": 0,
-      "use_other_vram": true,
-      "expert_mode_allocations": ""
+      "unet_name": "flux1-dev-Q4_0.gguf"
     },
-    "class_type": "UnetLoaderGGUFDisTorchMultiGPU",
+    "class_type": "UnetLoaderGGUF",
     "_meta": {
-      "title": "UnetLoaderGGUFDisTorchMultiGPU"
+      "title": "Load Checkpoint"
     }
   },
   "39": {
     "inputs": {
-      "clip_name1": "t5-v1_1-xxl-encoder-Q4_K_M.gguf",
+      "clip_name1": "t5/t5xxl_fp8_e4m3fn.safetensors",
       "clip_name2": "clip_l.safetensors",
-      "type": "flux",
-      "device": "cuda:0",
-      "virtual_vram_gb": 0,
-      "use_other_vram": true,
-      "expert_mode_allocations": ""
+      "type": "flux"
     },
-    "class_type": "DualCLIPLoaderGGUFDisTorchMultiGPU",
+    "class_type": "DualCLIPLoader",
     "_meta": {
-      "title": "DualCLIPLoaderGGUFDisTorchMultiGPU"
+      "title": "Load CLIP"
     }
   },
   "41": {
     "inputs": {
-      "vae_name": "FLUX1/ae.safetensors",
-      "device": "cuda:0"
+      "vae_name": "FLUX1/ae.safetensors"
     },
-    "class_type": "VAELoaderMultiGPU",
+    "class_type": "VAELoader",
     "_meta": {
-      "title": "VAELoaderMultiGPU"
-    }
-  },
-  "42": {
-    "inputs": {
-      "offload_model": true,
-      "offload_cache": true,
-      "anything": [
-        "8",
-        0
-      ]
-    },
-    "class_type": "VRAMCleanup",
-    "_meta": {
-      "title": "🎈VRAM-Cleanup"
+      "title": "Load VAE"
     }
   }
 }

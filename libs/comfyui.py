@@ -359,7 +359,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
                     seed_param="noise_seed",
                     save_node="Save Image",
                     save_param="filename_prefix",
-                    model_node="UnetLoaderGGUFDisTorchMultiGPU",
+                    model_node="Load Checkpoint",
                     model_param="unet_name",
                     model=model
                 )
