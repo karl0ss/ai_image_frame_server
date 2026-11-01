@@ -21,12 +21,24 @@ secondary_topic =
 flux = False
 qwen = False
 zimage = False
+krea = False
+flux3 = False
+qwen21 = False
+klein = False
 only_flux = False
 
 [comfyui:qwen]
 models = qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf
 [comfyui:zimage]
 models = z_image_turbo-Q8_0.gguf
+[comfyui:krea]
+models = krea2_turbo_int8_convrot.safetensors
+[comfyui:flux3]
+models = flux3-image-klein-int8-convrot.safetensors
+[comfyui:qwen21]
+models = qwen_image_2.1_turbo_int8_convrot.safetensors
+[comfyui:klein]
+models = flux-2-klein-base-9b-Q5_K_M.gguf
 [comfyui:me]
 # Puts you in random scenes. Photos are file names in ComfyUI's input folder.
 enabled = False

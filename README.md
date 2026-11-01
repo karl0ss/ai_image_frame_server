@@ -5,7 +5,7 @@ This project is a Flask-based web server designed to generate and display images
 ## Features
 
 *   **Web Interface:** A simple web interface to view generated images, manage favourites, and monitor job queues.
-*   **Image Generation:** Integrates with ComfyUI to generate images using SDXL, FLUX, Qwen, and Z-Image models based on given prompts.
+*   **Image Generation:** Integrates with ComfyUI to generate images using SDXL, SD 1.5, FLUX, FLUX 3, Krea, Qwen, and Z-Image models based on given prompts.
 *   **Prompt Generation:** Automatic prompt generation using OpenWebUI or OpenRouter APIs with topic-based theming.
 *   **Scheduled Generation:** Automatically generates new images at a configurable time.
 *   **Favourites System:** Mark and manage favourite images.
@@ -90,9 +90,11 @@ The application is configured via the `user_config.cfg` file.
 | `[comfyui]` | `flux`               | Enable FLUX models (`True`/`False`).                                        | `False`               |
 | `[comfyui]` | `qwen`               | Enable Qwen models (`True`/`False`).                                        | `False`               |
 | `[comfyui]` | `zimage`             | Enable Z-Image models (`True`/`False`).                                     | `False`               |
+| `[comfyui]` | `krea`, `flux3`, `qwen21`, `klein` | Enable Krea 2, FLUX 3, Qwen-Image 2.1 and FLUX.2 Klein models (`True`/`False`). | `False` |
 | `[comfyui:flux]` | `models`       | A comma-separated list of FLUX models.                                      | `flux1-dev-Q4_0.gguf,flux1-schnell-Q4_0.gguf` |
 | `[comfyui:qwen]` | `models`       | A comma-separated list of Qwen models.                                      | `qwen-image-Q4_K_S.gguf, qwen-image-Q2_K.gguf` |
 | `[comfyui:zimage]` | `models`     | A comma-separated list of Z-Image models.                                   | `z_image_turbo-Q8_0.gguf` |
+| `[comfyui:krea]`, `[comfyui:flux3]`, `[comfyui:qwen21]`, `[comfyui:klein]` | `models` | A comma-separated list of models for each workflow. | See `user_config.cfg.sample` |
 | `[comfyui:me]` | `enabled`        | Add the "Me" option, which puts you in scenes using a photo of you. Needs the `FaceSwapFromPhoto` node in ComfyUI. | `False` |
 | `[comfyui:me]` | `photos`         | Comma-separated file names in ComfyUI's input folder.                       | `me.jpg`              |
 | `[comfyui:me]` | `nightly_chance` | Percentage of daily images that are one of you.                             | `25`                  |

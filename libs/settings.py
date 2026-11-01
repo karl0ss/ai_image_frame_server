@@ -75,6 +75,10 @@ GROUPS = (
         Field("comfyui", "flux", "Use Flux models", BOOL),
         Field("comfyui", "qwen", "Use Qwen models", BOOL),
         Field("comfyui", "zimage", "Use Z-Image models", BOOL),
+        Field("comfyui", "krea", "Use Krea models", BOOL),
+        Field("comfyui", "flux3", "Use FLUX 3 models", BOOL),
+        Field("comfyui", "qwen21", "Use Qwen 2.1 models", BOOL),
+        Field("comfyui", "klein", "Use FLUX.2 Klein models", BOOL),
         Field("comfyui", "only_flux", "Never pick SDXL at random", BOOL),
     )),
     Group("Image models", "File names as ComfyUI knows them, one per line.", (
@@ -82,6 +86,10 @@ GROUPS = (
         Field("comfyui:flux", "models", "Flux", LIST),
         Field("comfyui:qwen", "models", "Qwen", LIST),
         Field("comfyui:zimage", "models", "Z-Image", LIST),
+        Field("comfyui:krea", "models", "Krea", LIST),
+        Field("comfyui:flux3", "models", "FLUX 3", LIST),
+        Field("comfyui:qwen21", "models", "Qwen 2.1", LIST),
+        Field("comfyui:klein", "models", "FLUX.2 Klein", LIST),
     )),
     Group("Me", "Puts you in random scenes using a photo of you, with the Qwen Image Edit workflow.", (
         Field("comfyui:me", "enabled", "Enabled", BOOL),

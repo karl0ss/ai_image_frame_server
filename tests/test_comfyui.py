@@ -94,7 +94,7 @@ def comfy(monkeypatch, config, tmp_path):
     workflow = {
         "3": {"class_type": "KSampler", "_meta": {"title": "KSampler"}, "inputs": {"seed": 1}},
         "6": {"class_type": "CLIPTextEncode", "_meta": {"title": "Positive"}, "inputs": {"text": ""}},
-        "10": {"class_type": "EmptyLatentImage", "_meta": {"title": "Empty Latent Image"},
+        "10": {"class_type": "EmptyLatentImage", "_meta": {"title": "CR Aspect Ratio"},
                "inputs": {"width": 1, "height": 1}},
         "20": {"class_type": "CheckpointLoaderSimple", "_meta": {"title": "Load Checkpoint"},
                "inputs": {"ckpt_name": ""}},
@@ -483,3 +483,81 @@ def test_me_workflows_swap_the_face_before_saving(path):
             return
         node = workflow[source]
     pytest.fail("The face swap is not on the path to the saved image.")
+
+
+@pytest.mark.parametrize("model, workflow", [
+    ("krea2_turbo_int8_convrot.safetensors", "Krea"),
+    ("flux3-image-klein-int8-convrot.safetensors", "Flux3"),
+    ("flux-2-klein-base-9b-Q5_K_M.gguf", "Klein"),
+    ("qwen_image_2.1_turbo_int8_convrot.safetensors", "Qwen21"),
+    ("qwen-image-Q4_K_S.gguf", "Qwen"),
+    ("flux1-dev-Q4_0.gguf", "FLUX"),
+    ("pixelwave_flux1Schnell04.gguf", "FLUX"),
+    ("DreamShaper_8_pruned.safetensors", "SD15"),
+    ("realisticVisionV60B1_v51HyperVAE.safetensors", "SD15"),
+    ("juggernautXL_ragnarokBy.safetensors", "SDXL"),
+])
+def test_named_models_use_their_own_workflow(config, model, workflow):
+    assert comfyui.select_model(model) == (workflow, model)
+
+
+@pytest.mark.parametrize("key, model", [
+    ("krea", "krea2_turbo_int8_convrot.safetensors"),
+    ("flux3", "flux3-image-klein-int8-convrot.safetensors"),
+    ("qwen21", "qwen_image_2.1_turbo_int8_convrot.safetensors"),
+    ("klein", "flux-2-klein-base-9b-Q5_K_M.gguf"),
+])
+def test_new_workflows_are_picked_at_random_and_listed_when_enabled(config, save_config, key, model):
+    from libs.generic import load_models_from_config
+
+    config["comfyui"][key] = "True"
+    config["comfyui"]["only_flux"] = "True"
+    config[f"comfyui:{key}"] = {"models": model}
+    save_config()
+
+    assert comfyui.select_model("Random Image Model")[1] == model
+    assert [model] in load_models_from_config()
+
+
+@pytest.mark.parametrize("name", list(comfyui.WORKFLOWS))
+def test_every_workflow_has_each_node_the_app_sets(name):
+    workflow = comfyui.WORKFLOWS[name]
+    with open(workflow.path) as f:
+        nodes = {node["_meta"]["title"]: node["inputs"] for node in json.load(f).values()}
+
+    for title, param in (
+        (workflow.prompt_node, workflow.prompt_param),
+        (workflow.seed_node, workflow.seed_param),
+        ("Load Checkpoint", workflow.model_param),
+        ("CR Aspect Ratio", "width"),
+        ("Save Image", "filename_prefix"),
+    ):
+        assert param in nodes[title], (title, param)
+    if workflow.render_long_side:
+        for node in workflow.render_nodes:
+            assert "width" in nodes[node]
+
+
+@pytest.mark.parametrize("name, model, width, height", [
+    ("SD15", "DreamShaper_8_pruned.safetensors", 512, 768),
+    ("SDXL", "juggernautXL_ragnarokBy.safetensors", 832, 1248),
+    ("Klein", "flux-2-klein-base-9b-Q5_K_M.gguf", 832, 1248),
+])
+def test_models_render_at_their_own_size_for_the_frame(monkeypatch, config, name, model, width, height):
+    calls = []
+    monkeypatch.setattr(comfyui, "generate_image", lambda **kwargs: calls.append(kwargs))
+    config["comfyui"]["width"], config["comfyui"]["height"] = "720", "1080"
+
+    comfyui._render_workflow(name, "a cat", model)
+
+    assert calls[0]["node_params"]["Render size"] == {"width": width, "height": height}
+
+
+def test_realistic_vision_keeps_its_own_sampler_settings(monkeypatch, config):
+    calls = []
+    monkeypatch.setattr(comfyui, "generate_image", lambda **kwargs: calls.append(kwargs))
+    config["comfyui"]["width"], config["comfyui"]["height"] = "720", "1080"
+
+    comfyui._render_workflow("SD15", "a cat", "realisticVisionV60B1_v51HyperVAE.safetensors")
+
+    assert calls[0]["node_params"]["KSampler"]["steps"] == 6

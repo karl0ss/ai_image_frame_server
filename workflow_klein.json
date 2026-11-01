@@ -1,0 +1,191 @@
+{
+  "1": {
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Load Checkpoint"
+    },
+    "inputs": {
+      "unet_name": "flux-2-klein-base-9b-Q5_K_M.gguf"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    },
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive"
+    },
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": ""
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative"
+    },
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": ""
+    }
+  },
+  "5": {
+    "class_type": "EmptyFlux2LatentImage",
+    "_meta": {
+      "title": "Render size"
+    },
+    "inputs": {
+      "width": 832,
+      "height": 1248,
+      "batch_size": 1
+    }
+  },
+  "6": {
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG Guider"
+    },
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "cfg": 5
+    }
+  },
+  "7": {
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    },
+    "inputs": {
+      "noise_seed": 1
+    }
+  },
+  "8": {
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    },
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "9": {
+    "class_type": "Flux2Scheduler",
+    "_meta": {
+      "title": "Schedule"
+    },
+    "inputs": {
+      "steps": 20,
+      "width": 832,
+      "height": 1248
+    }
+  },
+  "10": {
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Sampler"
+    },
+    "inputs": {
+      "noise": [
+        "7",
+        0
+      ],
+      "guider": [
+        "6",
+        0
+      ],
+      "sampler": [
+        "8",
+        0
+      ],
+      "sigmas": [
+        "9",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    }
+  },
+  "11": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    },
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  },
+  "12": {
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    },
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "vae": [
+        "11",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "CR Aspect Ratio"
+    },
+    "inputs": {
+      "image": [
+        "12",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 720,
+      "height": 1080,
+      "crop": "disabled"
+    }
+  },
+  "21": {
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    },
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "20",
+        0
+      ]
+    }
+  }
+}

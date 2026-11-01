@@ -40,7 +40,9 @@ def _validate_topic(topic: str) -> str:
 
 
 def _load_models_and_topics():
-    sdxl_models, flux_models, qwen_models, zimage_models = load_models_from_config()
+    sdxl_models, flux_models, qwen_models, zimage_models, krea_models, flux3_models, qwen21_models, klein_models = (
+        load_models_from_config()
+    )
     queue_count = get_queue_count()
     topics = load_topics_from_config()
     return {
@@ -48,6 +50,10 @@ def _load_models_and_topics():
         "flux_models": flux_models,
         "qwen_models": qwen_models,
         "zimage_models": zimage_models,
+        "krea_models": krea_models,
+        "flux3_models": flux3_models,
+        "qwen21_models": qwen21_models,
+        "klein_models": klein_models,
         "me_enabled": bool(load_me_photos()),
         "prompt_model_groups": load_prompt_model_groups(),
         "topics": topics,

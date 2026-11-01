@@ -4,6 +4,7 @@ import random
 import re
 import time
 import requests
+from dataclasses import dataclass
 from typing import Optional
 from comfy_api_simplified import ComfyWorkflowWrapper
 from tenacity import (
@@ -46,6 +47,69 @@ ME_RENDER_LONG_SIDE = 1536
 ME_PIXEL_SIZE = 3
 DEFAULT_ME_CHANCE = 25
 PIXEL_ART_RE = re.compile(r"(?:\b\d+-bit\s+)?\bpixel[\s-]?art\b(?:\s+style)?", re.IGNORECASE)
+
+# Older checkpoints share one slot in the random pick, split by what they were trained at.
+SD15_MODELS = {"DreamShaper_8_pruned.safetensors", "realisticVisionV60B1_v51HyperVAE.safetensors"}
+# Models that are off the settings of the workflow they share.
+MODEL_SETTINGS = {
+    "pixelwave_flux1Schnell04.gguf": {"BasicScheduler": {"steps": 4}},
+    "realisticVisionV60B1_v51HyperVAE.safetensors": {
+        "KSampler": {"steps": 6, "cfg": 1.75, "sampler_name": "dpmpp_sde"},
+    },
+}
+
+
+@dataclass(frozen=True)
+class Workflow:
+    path: str
+    model_param: str = "unet_name"
+    prompt_node: str = "Positive"
+    prompt_param: str = "text"
+    seed_node: str = "KSampler"
+    seed_param: str = "seed"
+    # Set when the model renders at its own size and is scaled to the frame afterwards.
+    render_long_side: int | None = None
+    render_nodes: tuple[str, ...] = ("Render size",)
+
+
+WORKFLOWS = {
+    "SDXL": Workflow("./workflow_sdxl.json", model_param="ckpt_name", render_long_side=1248),
+    "SD15": Workflow("./workflow_sd15.json", model_param="ckpt_name", render_long_side=768),
+    "FLUX": Workflow(
+        "./workflow_flux.json",
+        prompt_node="CLIP Text Encode (Positive Prompt)",
+        seed_node="RandomNoise",
+        seed_param="noise_seed",
+    ),
+    "Qwen": Workflow("./workflow_qwen.json"),
+    "ZImage": Workflow("./workflow_zimage.json"),
+    "Krea": Workflow("./workflow_krea.json", render_long_side=1248),
+    "Flux3": Workflow("./workflow_flux3.json", render_long_side=1248),
+    "Qwen21": Workflow(
+        "./workflow_qwen21.json",
+        prompt_param="prompt",
+        seed_node="RandomNoise",
+        seed_param="noise_seed",
+        render_long_side=1248,
+    ),
+    "Klein": Workflow(
+        "./workflow_klein.json",
+        seed_node="RandomNoise",
+        seed_param="noise_seed",
+        render_long_side=1248,
+        render_nodes=("Render size", "Schedule"),
+    ),
+}
+# Workflow name to its config key: the on/off switch in [comfyui] and the [comfyui:<key>] model list.
+OPTIONAL_WORKFLOWS = {
+    "FLUX": "flux",
+    "Qwen": "qwen",
+    "ZImage": "zimage",
+    "Krea": "krea",
+    "Flux3": "flux3",
+    "Qwen21": "qwen21",
+    "Klein": "klein",
+}
 
 
 def get_available_models() -> list:
@@ -260,24 +324,8 @@ def generate_image(
         wf.set_node_param(seed_node, seed_param, random.getrandbits(32))
         wf.set_node_param(prompt_node, prompt_param, comfy_prompt)
         wf.set_node_param(save_node, save_param, file_name)
-        wf.set_node_param(
-            (
-                "Empty Latent Image"
-                if workflow_path.endswith("workflow_sdxl.json")
-                else "CR Aspect Ratio"
-            ),
-            "width",
-            config["comfyui"]["width"],
-        )
-        wf.set_node_param(
-            (
-                "Empty Latent Image"
-                if workflow_path.endswith("workflow_sdxl.json")
-                else "CR Aspect Ratio"
-            ),
-            "height",
-            config["comfyui"]["height"],
-        )
+        wf.set_node_param("CR Aspect Ratio", "width", config["comfyui"]["width"])
+        wf.set_node_param("CR Aspect Ratio", "height", config["comfyui"]["height"])
 
         wf.set_node_param(model_node, model_param, model)
         for node, params in (node_params or {}).items():
@@ -315,55 +363,51 @@ def generate_image(
         raise
 
 
-def select_model(model: str) -> tuple[str, str]:
+def _workflow_for(model: str) -> str:
+    name = model.lower()
+    if model in SD15_MODELS:
+        return "SD15"
+    if "krea" in name:
+        return "Krea"
+    if "flux3" in name or "flux-3" in name:
+        return "Flux3"
+    if "klein" in name:
+        return "Klein"
+    if "image_2.1" in name or "image-2.1" in name:
+        return "Qwen21"
+    if "flux" in name:
+        return "FLUX"
+    if "qwen" in name:
+        return "Qwen"
+    if "z_image" in name or "z-image" in name:
+        return "ZImage"
+    return "SDXL"
+
+
+def _pick_random_model() -> str:
     config = load_config()
-    use_flux = get_bool(config, "comfyui", "flux", False)
-    only_flux = get_bool(config, "comfyui", "only_flux", False)
-    use_qwen = get_bool(config, "comfyui", "qwen", False)
-    use_zimage = get_bool(config, "comfyui", "zimage", False)
+    enabled = [name for name, key in OPTIONAL_WORKFLOWS.items() if get_bool(config, "comfyui", key, False)]
+    if not get_bool(config, "comfyui", "only_flux", False) or not enabled:
+        enabled.append("SDXL")
 
-    if model == "Random Image Model":
-        available_workflows = []
-        if not only_flux:
-            available_workflows.append("SDXL")
-        if use_flux:
-            available_workflows.append("FLUX")
-        if use_qwen:
-            available_workflows.append("Qwen")
-        if use_zimage:
-            available_workflows.append("ZImage")
-
-        if not available_workflows:
-            available_workflows.append("SDXL")
-
-        selected_workflow = random.choice(available_workflows)
-    elif "flux" in model.lower():
-        selected_workflow = "FLUX"
-    elif "qwen" in model.lower():
-        selected_workflow = "Qwen"
-    elif "z_image" in model.lower() or "z-image" in model.lower():
-        selected_workflow = "ZImage"
+    selected_workflow = random.choice(enabled)
+    if selected_workflow == "SDXL":
+        configured = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
+        valid_models = list(set(get_available_models()) & set(configured)) or configured
     else:
-        selected_workflow = "SDXL"
+        section = f"comfyui:{OPTIONAL_WORKFLOWS[selected_workflow]}"
+        valid_models = [m.strip() for m in config[section]["models"].split(",") if m.strip()]
 
+    if not valid_models:
+        fallback_models = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
+        valid_models = fallback_models[:1] if fallback_models else ["sd_xl_base_1.0.safetensors"]
+    return random.choice(valid_models)
+
+
+def select_model(model: str) -> tuple[str, str]:
     if model == "Random Image Model":
-        if selected_workflow == "FLUX":
-            valid_models = [m.strip() for m in config["comfyui:flux"]["models"].split(",") if m.strip()]
-        elif selected_workflow == "Qwen":
-            valid_models = [m.strip() for m in config["comfyui:qwen"]["models"].split(",") if m.strip()]
-        elif selected_workflow == "ZImage":
-            valid_models = [m.strip() for m in config["comfyui:zimage"]["models"].split(",") if m.strip()]
-        else:
-            available_model_list = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
-            valid_models = list(set(get_available_models()) & set(available_model_list))
-            if not valid_models:
-                valid_models = available_model_list
-        if not valid_models:
-            fallback_models = [m.strip() for m in config["comfyui"]["models"].split(",") if m.strip()]
-            valid_models = fallback_models[:1] if fallback_models else ["sd_xl_base_1.0.safetensors"]
-        model = random.choice(valid_models)
-
-    return selected_workflow, model
+        model = _pick_random_model()
+    return _workflow_for(model), model
 
 
 def _use_freellmapi_backend() -> bool:
@@ -378,10 +422,39 @@ def _me_prompt(scene: str, pixel_art: bool) -> str:
     return f"{text}.{style} {ME_FRAMING} {ME_LIKENESS}"
 
 
+def _render_size(width: int, height: int, long_side: int, multiple: int = 32) -> tuple[int, int]:
+    """Scales the frame's shape to a long side, on a multiple the model can take."""
+    scale = long_side / max(width, height)
+    return round(width * scale / multiple) * multiple, round(height * scale / multiple) * multiple
+
+
 def _me_size(width: int, height: int) -> tuple[int, int]:
-    """Renders above frame size, for more detail in a small face, keeping the frame's shape."""
-    scale = ME_RENDER_LONG_SIDE / max(width, height)
-    return round(width * scale / 16) * 16, round(height * scale / 16) * 16
+    """Renders above frame size, for more detail in a small face."""
+    return _render_size(width, height, ME_RENDER_LONG_SIDE, multiple=16)
+
+
+def _render_workflow(name: str, prompt: str, model: str) -> None:
+    workflow = WORKFLOWS[name]
+    node_params = dict(MODEL_SETTINGS.get(model, {}))
+    if workflow.render_long_side:
+        config = load_config()
+        width, height = _render_size(
+            int(config["comfyui"]["width"]), int(config["comfyui"]["height"]), workflow.render_long_side
+        )
+        for node in workflow.render_nodes:
+            node_params[node] = {"width": width, "height": height}
+    generate_image(
+        file_name="image",
+        comfy_prompt=prompt,
+        workflow_path=workflow.path,
+        prompt_node=workflow.prompt_node,
+        prompt_param=workflow.prompt_param,
+        seed_node=workflow.seed_node,
+        seed_param=workflow.seed_param,
+        model_param=workflow.model_param,
+        model=model,
+        node_params=node_params,
+    )
 
 
 def _render_me(scene: str, topic: str = "") -> None:
@@ -452,50 +525,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
             selected_workflow, model = select_model(model)
             jobs.update_current(model=model)
             jobs.log_step(f"Image model selected: {model} ({selected_workflow})")
-            if selected_workflow == "FLUX":
-                generate_image(
-                    file_name="image",
-                    comfy_prompt=prompt,
-                    workflow_path="./workflow_flux.json",
-                    prompt_node="CLIP Text Encode (Positive Prompt)",
-                    seed_node="RandomNoise",
-                    seed_param="noise_seed",
-                    save_node="Save Image",
-                    save_param="filename_prefix",
-                    model_node="Load Checkpoint",
-                    model_param="unet_name",
-                    model=model
-                )
-            elif selected_workflow == "Qwen":
-                generate_image(
-                    file_name="image",
-                    comfy_prompt=prompt,
-                    workflow_path="./workflow_qwen.json",
-                    prompt_node="Positive",
-                    seed_node="KSampler",
-                    seed_param="seed",
-                    save_node="Save Image",
-                    save_param="filename_prefix",
-                    model_node="Load Checkpoint",
-                    model_param="ckpt_name",
-                    model=model
-                )
-            elif selected_workflow == "ZImage":
-                generate_image(
-                    file_name="image",
-                    comfy_prompt=prompt,
-                    workflow_path="./workflow_zimage.json",
-                    prompt_node="Positive",
-                    seed_node="KSampler",
-                    seed_param="seed",
-                    save_node="Save Image",
-                    save_param="filename_prefix",
-                    model_node="Load Checkpoint",
-                    model_param="unet_name",
-                    model=model
-                )
-            else:
-                generate_image("image", comfy_prompt=prompt, model=model)
+            _render_workflow(selected_workflow, prompt, model)
 
             logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
         finally:
@@ -506,6 +536,7 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
 
 _MODEL_LOADER_NODES = (
     "CheckpointLoaderSimple",
+    "UNETLoader",
     "UnetLoaderGGUF",
     "UnetLoaderGGUFDisTorchMultiGPU",
     "UnetLoaderGGUFAdvancedDisTorchMultiGPU",

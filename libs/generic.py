@@ -408,19 +408,12 @@ def _config_models(config: configparser.ConfigParser, section: str, requires_ena
 def load_models_from_config():
     config = load_config()
     sdxl_models = _split_csv(config["comfyui"]["models"])
-    flux_models = (
-        _config_models(config, "comfyui:flux", requires_enabled=False)
-        if get_bool(config, "comfyui", "flux", False) else []
-    )
-    qwen_models = (
-        _config_models(config, "comfyui:qwen", requires_enabled=False)
-        if get_bool(config, "comfyui", "qwen", False) else []
-    )
-    zimage_models = (
-        _config_models(config, "comfyui:zimage", requires_enabled=False)
-        if get_bool(config, "comfyui", "zimage", False) else []
-    )
-    return sdxl_models, flux_models, qwen_models, zimage_models
+    optional = [
+        _config_models(config, f"comfyui:{key}", requires_enabled=False)
+        if get_bool(config, "comfyui", key, False) else []
+        for key in ("flux", "qwen", "zimage", "krea", "flux3", "qwen21", "klein")
+    ]
+    return (sdxl_models, *optional)
 
 
 def load_me_photos() -> list[str]:

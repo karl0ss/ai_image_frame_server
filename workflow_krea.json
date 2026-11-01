@@ -1,0 +1,143 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Checkpoint"
+    },
+    "inputs": {
+      "unet_name": "krea2_turbo_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    },
+    "inputs": {
+      "clip_name": "qwen3vl_4b_int8_convrot.safetensors",
+      "type": "krea2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive"
+    },
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": ""
+    }
+  },
+  "4": {
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "Negative"
+    },
+    "inputs": {
+      "conditioning": [
+        "3",
+        0
+      ]
+    }
+  },
+  "5": {
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Render size"
+    },
+    "inputs": {
+      "width": 832,
+      "height": 1248,
+      "batch_size": 1
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    },
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ],
+      "seed": 1,
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    }
+  },
+  "7": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    },
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "8": {
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    },
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "7",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "CR Aspect Ratio"
+    },
+    "inputs": {
+      "image": [
+        "8",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 720,
+      "height": 1080,
+      "crop": "disabled"
+    }
+  },
+  "21": {
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    },
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "20",
+        0
+      ]
+    }
+  }
+}

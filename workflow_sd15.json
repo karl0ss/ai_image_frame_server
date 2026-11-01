@@ -1,0 +1,135 @@
+{
+  "3": {
+    "inputs": {
+      "seed": 676047523401976,
+      "steps": 30,
+      "cfg": 6,
+      "sampler_name": "dpmpp_3m_sde",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "DreamShaper_8_pruned.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": 512,
+      "height": 768,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Render size"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "A bustling cyberpunk street at night, filled with neon signs, rain-soaked pavement, and futuristic street vendors. High detail, vivid neon colors, and realistic reflections.",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "watermark, blurry, low quality, deformed, bad anatomy, extra limbs",
+      "speak_and_recognation": {
+        "__value__": [
+          false,
+          true
+        ]
+      },
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "10": {
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "CR Aspect Ratio"
+    },
+    "inputs": {
+      "image": [
+        "8",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 720,
+      "height": 1080,
+      "crop": "disabled"
+    }
+  }
+}

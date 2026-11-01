@@ -1,0 +1,193 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Checkpoint"
+    },
+    "inputs": {
+      "unet_name": "qwen_image_2.1_turbo_int8_convrot.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "QwenImage21Cache",
+    "_meta": {
+      "title": "Cache"
+    },
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "device": "auto",
+      "dtype": "default"
+    }
+  },
+  "3": {
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    },
+    "inputs": {
+      "clip_name": "qwen3vl_8b_int8_convrot.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "4": {
+    "class_type": "TextEncodeQwenImage21",
+    "_meta": {
+      "title": "Positive"
+    },
+    "inputs": {
+      "clip": [
+        "3",
+        0
+      ],
+      "prompt": "",
+      "negative_prompt": "",
+      "resolution": 1024
+    }
+  },
+  "5": {
+    "class_type": "CFGGuider",
+    "_meta": {
+      "title": "CFG Guider"
+    },
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "4",
+        1
+      ],
+      "cfg": 1
+    }
+  },
+  "6": {
+    "class_type": "RandomNoise",
+    "_meta": {
+      "title": "RandomNoise"
+    },
+    "inputs": {
+      "noise_seed": 1
+    }
+  },
+  "7": {
+    "class_type": "KSamplerSelect",
+    "_meta": {
+      "title": "KSamplerSelect"
+    },
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "8": {
+    "class_type": "ManualSigmas",
+    "_meta": {
+      "title": "Turbo schedule"
+    },
+    "inputs": {
+      "sigmas": "1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0"
+    }
+  },
+  "9": {
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Render size"
+    },
+    "inputs": {
+      "width": 832,
+      "height": 1248,
+      "batch_size": 1
+    }
+  },
+  "10": {
+    "class_type": "SamplerCustomAdvanced",
+    "_meta": {
+      "title": "Sampler"
+    },
+    "inputs": {
+      "noise": [
+        "6",
+        0
+      ],
+      "guider": [
+        "5",
+        0
+      ],
+      "sampler": [
+        "7",
+        0
+      ],
+      "sigmas": [
+        "8",
+        0
+      ],
+      "latent_image": [
+        "9",
+        0
+      ]
+    }
+  },
+  "11": {
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    },
+    "inputs": {
+      "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+    }
+  },
+  "12": {
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    },
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "vae": [
+        "11",
+        0
+      ]
+    }
+  },
+  "20": {
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "CR Aspect Ratio"
+    },
+    "inputs": {
+      "image": [
+        "12",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "width": 720,
+      "height": 1080,
+      "crop": "disabled"
+    }
+  },
+  "21": {
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    },
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "20",
+        0
+      ]
+    }
+  }
+}
