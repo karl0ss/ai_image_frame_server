@@ -129,9 +129,9 @@ def create_prompt_on_openrouter(base_prompt: str, topic: str | None = "random", 
                     return create_prompt_on_openwebui(full_content, None, selected_model)
                 except Exception as e2:
                     logger.error("OpenWebUI fallback also failed: %s", e2)
-                    return "A colorful abstract composition"
+                    return ""
         logger.error("No OpenWebUI models configured for fallback.")
-        return "A colorful abstract composition"
+        return ""
     except Exception as e:
         logger.warning("Primary model %s failed: %s. Trying fallback models.", model, e)
 

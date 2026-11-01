@@ -253,6 +253,59 @@ def test_queue_count_is_zero_when_comfyui_is_down(monkeypatch, config):
     assert comfyui.get_queue_count() == 0
 
 
+def random_render(monkeypatch, models, results):
+    """Runs a random render where each attempt takes the next result, and returns the models tried."""
+    picks = iter(models)
+    outcomes = iter(results)
+    rendered = []
+
+    def fake_render(name, prompt, model):
+        rendered.append(model)
+        outcome = next(outcomes)
+        if outcome:
+            raise outcome
+
+    monkeypatch.setattr(comfyui, "_pick_random_model", lambda: next(picks))
+    monkeypatch.setattr(comfyui, "_render_workflow", fake_render)
+    monkeypatch.setattr(comfyui, "free_comfy_memory", lambda: None)
+    job = jobs.get_job(jobs.run(comfyui.create_image, "a cat"))
+    return job, rendered
+
+
+def test_failed_random_render_moves_on_to_another_model(monkeypatch, config):
+    job, rendered = random_render(monkeypatch, ["a", "a", "b"], [RuntimeError("broken"), None])
+    assert job["status"] == "done"
+    assert rendered == ["a", "b"]
+
+
+def test_random_render_gives_up_after_its_tries(monkeypatch, config):
+    failures = [RuntimeError(str(n)) for n in range(3)]
+    job, rendered = random_render(monkeypatch, ["a", "b", "c", "d"], failures)
+    assert job["status"] == "failed"
+    assert job["error"] == "2"
+    assert rendered == ["a", "b", "c"]
+
+
+def test_chosen_model_is_not_swapped_when_it_fails(monkeypatch, config):
+    rendered = []
+
+    def fake_render(name, prompt, model):
+        rendered.append(model)
+        raise RuntimeError("broken")
+
+    monkeypatch.setattr(comfyui, "_render_workflow", fake_render)
+    monkeypatch.setattr(comfyui, "free_comfy_memory", lambda: None)
+    job = jobs.get_job(jobs.run(comfyui.create_image, "a cat", "chosen.safetensors"))
+    assert job["status"] == "failed"
+    assert rendered == ["chosen.safetensors"]
+
+
+@pytest.mark.parametrize("failure", [comfyui.RenderTimeout("slow"), jobs.JobCancelled()])
+def test_timeout_or_cancel_stops_a_random_render(monkeypatch, config, failure):
+    _, rendered = random_render(monkeypatch, ["a", "b"], [failure])
+    assert rendered == ["a"]
+
+
 def test_create_image_without_a_prompt_fails_the_job(monkeypatch, config):
     monkeypatch.setattr("libs.generic.create_prompt_with_random_model", lambda *a: (None, ""))
     job = jobs.get_job(jobs.run(comfyui.create_image))

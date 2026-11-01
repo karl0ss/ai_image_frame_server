@@ -92,10 +92,34 @@ def test_openwebui_is_tried_twice(monkeypatch, calls):
     assert [c[0] for c in calls[:2]] == ["openwebui", "openwebui"]
 
 
-def test_all_services_failing_uses_static_prompt(monkeypatch, calls):
+def test_all_services_failing_gives_no_prompt(monkeypatch, calls):
     only(monkeypatch, "openrouter")
     calls.results = {"openrouter": RuntimeError("down")}
-    assert generic.create_prompt_with_random_model("base", "cats") == ("A colorful abstract composition", "")
+    assert generic.create_prompt_with_random_model("base", "cats") == (None, "")
+    assert len(calls) == 1
+
+
+def test_every_service_is_tried_before_giving_up(monkeypatch, calls):
+    only(monkeypatch, "openwebui", "openrouter", "ollama")
+    calls.results = {"openwebui": None, "openrouter": RuntimeError("down")}
+    prompt, _ = generic.create_prompt_with_random_model("base", "cats")
+    assert prompt == "prompt from ollama"
+
+
+def test_a_second_model_on_the_same_service_gets_a_go(monkeypatch):
+    models = [("ollama", "bad"), ("ollama", "good")]
+    monkeypatch.setattr(generic, "load_prompt_models_from_config", lambda: models)
+    monkeypatch.setattr(generic, "load_recent_prompts", lambda: [])
+    monkeypatch.setattr(generic, "load_recent_topics", lambda: [])
+    monkeypatch.setattr(generic, "try_prompt_service", lambda s, m, *a, **k: "worked" if m == "good" else None)
+    assert generic.create_prompt_with_random_model("base", "cats")[0] == "worked"
+
+
+def test_every_service_comes_before_a_repeat_of_one():
+    models = [("openwebui", str(n)) for n in range(40)] + [("ollama", "a"), ("openrouter", "b")]
+    order = generic._prompt_model_order(models)
+    assert {service for service, _ in order[:3]} == {"openwebui", "ollama", "openrouter"}
+    assert len(order) == generic.MAX_PROMPT_MODELS
 
 
 def test_only_duplicates_returns_none(monkeypatch, calls):

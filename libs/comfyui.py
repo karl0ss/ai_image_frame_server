@@ -28,6 +28,8 @@ IMAGE_FETCH_TIMEOUT = 60
 POLL_INTERVAL = 2
 MISSING_POLLS_LIMIT = 5
 RENDER_TIMEOUT = 3600
+RANDOM_MODEL_TRIES = 3
+UNTRIED_MODEL_PICKS = 20
 
 
 class RenderTimeout(Exception):
@@ -488,6 +490,36 @@ def _render_me(scene: str, topic: str = "") -> None:
     logger.info("Me generation started with prompt: %s", scene)
 
 
+def _render_model(prompt: str, model: str) -> None:
+    selected_workflow, model = select_model(model)
+    jobs.update_current(model=model)
+    jobs.log_step(f"Image model selected: {model} ({selected_workflow})")
+    _render_workflow(selected_workflow, prompt, model)
+    logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
+
+
+def _render_random_model(prompt: str) -> None:
+    """One broken model should not cost the night, so a failed render moves on to another."""
+    tried = set()
+    failure = None
+    for _ in range(RANDOM_MODEL_TRIES):
+        picks = (_pick_random_model() for _ in range(UNTRIED_MODEL_PICKS))
+        model = next((m for m in picks if m not in tried), None)
+        if model is None:
+            break
+        tried.add(model)
+        try:
+            _render_model(prompt, model)
+            return
+        except (RenderTimeout, jobs.JobCancelled):
+            # A timed out render may still be running, so another would stack on top of it.
+            raise
+        except Exception as e:
+            failure = e
+            jobs.log_step(f"{model} failed, trying another model")
+    raise failure
+
+
 def create_image(prompt: str | None = None, model: str = "Random Image Model", topic: str = "") -> None:
     if prompt is None:
         from libs.generic import create_prompt_with_random_model
@@ -522,12 +554,10 @@ def create_image(prompt: str | None = None, model: str = "Random Image Model", t
                 _render_me(prompt, topic)
                 return
 
-            selected_workflow, model = select_model(model)
-            jobs.update_current(model=model)
-            jobs.log_step(f"Image model selected: {model} ({selected_workflow})")
-            _render_workflow(selected_workflow, prompt, model)
-
-            logger.info("%s generation started with prompt: %s", selected_workflow, prompt)
+            if model == "Random Image Model":
+                _render_random_model(prompt)
+            else:
+                _render_model(prompt, model)
         finally:
             # Hand VRAM/RAM back after every run, including failed and cancelled ones.
             jobs.log_step("Freeing ComfyUI memory")

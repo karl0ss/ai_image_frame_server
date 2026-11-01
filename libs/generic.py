@@ -55,6 +55,8 @@ PROMPT_SERVICES = {
     "freellmapi": ("libs.freellmapi", "create_prompt_on_freellmapi"),
 }
 
+MAX_PROMPT_MODELS = 8
+
 _png_details_cache: OrderedDict[str, tuple[float, dict]] = OrderedDict()
 _png_cache_lock = threading.Lock()
 _PNG_CACHE_MAX = 256
@@ -542,26 +544,28 @@ def try_prompt_service(
     return None
 
 
+def _prompt_model_order(prompt_models: list) -> list:
+    """Random order, with one model from every service before any service gets a second go."""
+    first_tries, later_tries, seen = [], [], set()
+    for service, model in random.sample(prompt_models, len(prompt_models)):
+        (later_tries if service in seen else first_tries).append((service, model))
+        seen.add(service)
+    return (first_tries + later_tries)[:MAX_PROMPT_MODELS]
+
+
 def _generate_prompt(prompt_models: list, base_prompt: str, topic: str, recent_prompts: list[str]):
-    service, model = random.choice(prompt_models)
     user_content, selected_topic = build_user_content(topic, recent_prompts, _idea_request(base_prompt))
     full_prompt = base_prompt + "\n\n" + user_content
 
-    result = try_prompt_service(service, model, full_prompt, attempts=2 if service == "openwebui" else 1)
-    if result:
-        return result, selected_topic
-
-    other_models = [m for m in prompt_models if m[0] != service]
-    if other_models:
-        fb_service, fb_model = random.choice(other_models)
-        logging.warning("Falling back from %s to %s.", service, fb_service)
-        result = try_prompt_service(fb_service, fb_model, full_prompt)
+    for service, model in _prompt_model_order(prompt_models):
+        result = try_prompt_service(service, model, full_prompt, attempts=2 if service == "openwebui" else 1)
         if result:
             return result, selected_topic
+        logging.warning("%s model %s gave no prompt, trying the next one.", service, model)
 
-    logging.error("No prompt service produced a result (first tried: %s).", service)
-    jobs.log_step("No prompt service worked, using the stock prompt")
-    return "A colorful abstract composition", ""
+    logging.error("No prompt service produced a result.")
+    jobs.log_step("No prompt service worked")
+    return None, ""
 
 
 def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
@@ -577,7 +581,9 @@ def create_prompt_with_random_model(base_prompt: str, topic: str = "random"):
 
     for attempt in range(max_attempts):
         result, selected_topic = _generate_prompt(prompt_models, base_prompt, topic, recent_prompts)
-        if result and not _is_duplicate_prompt(result, recent_prompts):
+        if not result:
+            return None, ""
+        if not _is_duplicate_prompt(result, recent_prompts):
             return result, selected_topic
         if attempt < max_attempts - 1:
             logging.warning("Generated duplicate prompt (attempt %d/%d), retrying...", attempt + 1, max_attempts)
