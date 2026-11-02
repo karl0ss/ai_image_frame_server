@@ -75,7 +75,7 @@ The application is configured via the `user_config.cfg` file.
 | :-------- | :------------------- | :-------------------------------------------------------------------------- | :-------------------- |
 | `[frame]` | `reload_interval`    | How often the gallery page reloads in milliseconds.                         | `30000`               |
 | `[frame]` | `auto_regen`         | Enable or disable automatic image generation (`True`/`False`).              | `True`                |
-| `[frame]` | `regen_time`         | The time to automatically generate a new image (HH:MM).                     | `03:00`               |
+| `[frame]` | `regen_time`         | When to generate a new image (HH:MM). Separate several times with commas.   | `03:00`               |
 | `[frame]` | `port`               | The port the Flask application will run on.                                 | `5000`                |
 | `[frame]` | `create_requires_auth` | Require a password to create images (`True`/`False`).                       | `False`               |
 | `[frame]` | `password_for_auth`  | The password to use for image creation if authentication is enabled.        | `create`              |

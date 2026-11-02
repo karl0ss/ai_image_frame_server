@@ -109,6 +109,7 @@ def test_settings_page_needs_login(client):
 
 @pytest.mark.parametrize("field, value, message", [
     ("frame__regen_time", "3pm", "HH:MM"),
+    ("frame__regen_time", "02:00, 3pm", "HH:MM"),
     ("frame__reload_interval", "soon", "whole number"),
     ("frame__reload_interval", "1", "at least 1000"),
     ("frame__port", "70000", "at most 65535"),
@@ -270,11 +271,16 @@ def test_field_defaults_are_ones_the_code_also_falls_back_to():
 def test_scheduler_starts_without_a_saved_time(config, monkeypatch):
     import ai_frame_image_server as server
 
-    added = {}
+    added = scheduled_times(monkeypatch, server, config)
+    assert added == [("03", "00")]
+
+
+def scheduled_times(monkeypatch, server, config):
+    added = []
 
     class Scheduler:
         def add_job(self, fn, trigger, **kwargs):
-            added.update(kwargs)
+            added.append((kwargs["hour"], kwargs["minute"]))
 
         def start(self):
             pass
@@ -282,5 +288,18 @@ def test_scheduler_starts_without_a_saved_time(config, monkeypatch):
     monkeypatch.setattr(server, "BackgroundScheduler", Scheduler)
     config["frame"]["auto_regen"] = "True"
     server.start_scheduler(config)
-    assert (added["hour"], added["minute"]) == ("03", "00")
+    return added
+
+
+def test_scheduler_runs_at_every_listed_time(config, monkeypatch):
+    import ai_frame_image_server as server
+
+    config["frame"]["regen_time"] = "02:00, 12:00,18:00, 12:00, 3pm"
+    assert scheduled_times(monkeypatch, server, config) == [("02", "00"), ("12", "00"), ("18", "00")]
+
+
+def test_several_times_can_be_saved(logged_in):
+    response = save(logged_in, frame__regen_time="02:00, 12:00, 18:00")
+    assert response.status_code != 400
+    assert generic.load_config()["frame"]["regen_time"] == "02:00, 12:00, 18:00"
 

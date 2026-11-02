@@ -7,6 +7,7 @@ from flask import Flask
 
 from libs import jobs
 from libs.comfyui import create_image, picks_me_tonight, ME_MODEL
+from libs.settings import TIME_RE
 from libs.generic import (
     create_prompt_with_random_model, get_bool, get_current_version, load_config, load_secret_key, ME_PROMPT
 )
@@ -59,17 +60,30 @@ def scheduled_task():
         logger.warning("Failed to generate a prompt for the scheduled task.")
 
 
+def regen_times(value: str) -> list[str]:
+    """Splits "02:00, 12:00" into its times, dropping repeats and any that are not 24-hour HH:MM."""
+    times = []
+    for part in (p.strip() for p in value.split(",")):
+        if not TIME_RE.match(part):
+            logger.error("Ignoring generation time %r, it is not 24-hour HH:MM.", part)
+        elif part not in times:
+            times.append(part)
+    return times
+
+
 def start_scheduler(config) -> None:
     should_schedule = get_bool(config, "frame", "auto_regen", False)
     logger.info("auto_regen config check: %s", should_schedule)
     if should_schedule:
-        regen_time = config.get("frame", "regen_time", fallback="03:00")
-        logger.info("Initializing scheduled image generation at %s", regen_time)
+        times = regen_times(config.get("frame", "regen_time", fallback="03:00"))
+        logger.info("Initializing scheduled image generation at %s", ", ".join(times))
         scheduler = BackgroundScheduler()
-        h, m = regen_time.split(":")
-        scheduler.add_job(scheduled_task, "cron", hour=h, minute=m, id="scheduled_task", max_instances=1, replace_existing=True)
+        for regen_time in times:
+            h, m = regen_time.split(":")
+            scheduler.add_job(scheduled_task, "cron", hour=h, minute=m, id=f"scheduled_task_{h}{m}",
+                              max_instances=1, replace_existing=True)
         scheduler.start()
-        logger.info("Scheduled image generation active - will run daily at %s", regen_time)
+        logger.info("Scheduled image generation active - will run daily at %s", ", ".join(times))
 
 
 def main() -> None:

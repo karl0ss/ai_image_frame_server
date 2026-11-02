@@ -12,7 +12,7 @@ PASSWORD_CONFIRM_FIELD = "frame:password_for_auth_confirm"
 
 _SECTION_RE = re.compile(r"^\[(?P<section>[^\]]+)\]")
 _KEY_RE = re.compile(r"^(?P<key>[^\s#;\[=:][^=:]*?)\s*[=:]")
-_TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
+TIME_RE = re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
 _URL_RE = re.compile(r"^https?://\S+$")
 
 
@@ -51,12 +51,14 @@ def _provider_fields(section: str, *extra: Field) -> tuple[Field, ...]:
 
 
 GROUPS = (
-    Group("Frame", "The web page, nightly run and login.", (
+    Group("Frame", "The web page, scheduled runs and login.", (
         Field("frame", "reload_interval", "Page refresh limit (ms)", INT,
               "The web page checks for a new image at this rate, or every 30 seconds if that's sooner.",
               default="30000", minimum=1000),
         Field("frame", "auto_regen", "Generate an image every day", BOOL, restart=True),
-        Field("frame", "regen_time", "Daily generation time", TIME, "24-hour HH:MM.", default="03:00", restart=True),
+        Field("frame", "regen_time", "Daily generation times", TIME,
+              "24-hour HH:MM. Separate several with commas, for example 02:00, 12:00, 18:00.",
+              default="03:00", restart=True),
         Field("frame", "create_requires_auth", "Require login to create images", BOOL),
         Field("frame", "password_for_auth", "Password", SECRET),
         Field("frame", "port", "Server port", INT,
@@ -95,8 +97,8 @@ GROUPS = (
         Field("comfyui:me", "enabled", "Enabled", BOOL),
         Field("comfyui:me", "photos", "Photos", LIST,
               "File names in ComfyUI's input folder, one per line. One is picked at random."),
-        Field("comfyui:me", "nightly_chance", "Daily image chance (%)", INT,
-              "How often the daily image is one of you.", default="25", minimum=0, maximum=100),
+        Field("comfyui:me", "nightly_chance", "Chance per scheduled image (%)", INT,
+              "How often a scheduled image is one of you.", default="25", minimum=0, maximum=100),
     ), enabled_field="comfyui:me:enabled"),
     Group("OpenWebUI", "Writes prompts. Used whenever it has models listed or every model is on.", (
         Field("openwebui", "base_url", "URL", URL),
@@ -192,8 +194,8 @@ def _validate(field: Field, value: str) -> str | None:
             return f"Must be at least {field.minimum}."
         if field.maximum is not None and int(value) > field.maximum:
             return f"Must be at most {field.maximum}."
-    if field.kind == TIME and not _TIME_RE.match(value):
-        return "Use 24-hour HH:MM, for example 03:30."
+    if field.kind == TIME and not all(TIME_RE.match(part.strip()) for part in value.split(",")):
+        return "Use 24-hour HH:MM, for example 03:30, or several separated by commas."
     if field.kind == URL and not _URL_RE.match(value):
         return "Must start with http:// or https://."
     return None

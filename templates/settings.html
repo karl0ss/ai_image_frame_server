@@ -154,7 +154,7 @@
             {% elif field.kind == 'int' %}
             <input type="number" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
             {% elif field.kind == 'time' %}
-            <input type="text" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" placeholder="03:30" required>
+            <input type="text" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" placeholder="02:00, 12:00, 18:00" required>
             {% elif field.kind == 'url' %}
             <input type="url" id="{{ field_id }}" name="{{ field.name }}" value="{{ field.value }}" {% if field.required %}required{% endif %}>
             {% else %}
